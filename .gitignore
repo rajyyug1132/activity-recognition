@@ -230,3 +230,10 @@ data/*
 *.pkl
 *.keras
 *.h5
+
+# team rules
+.venv/
+data/
+models/
+*.zip
+.env
