@@ -27,20 +27,20 @@ STYLE = {
 
 st.set_page_config(page_title="Activity Recognition", page_icon=":material/directions_run:", layout="centered")
 st.markdown("""<style>
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&display=swap');
 html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-html, body, .stApp, h1, h2, h3, p, label, button, input, textarea { font-family: Figtree, system-ui, sans-serif; }
+html, body, .stApp, h1, h2, h3, p, label, button, input, textarea { font-family: 'Hanken Grotesk', system-ui, sans-serif; }
 .block-container { padding-top: 1.5rem; padding-bottom: 4rem; max-width: 760px; }
 @media (min-width: 1024px) { .block-container { max-width: 1080px; } }
-h3.sec { font-size: 1rem; font-weight: 700; color: #1F2328; margin: 0 0 .75rem; padding: 0; }
+h3.sec { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4a4741; margin: 0 0 1rem; padding: 0; }
 h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
-.stApp h1, .stApp h2, .stApp h3, [data-testid="stMarkdownContainer"] { font-family: Figtree, system-ui, sans-serif !important; } /* beat Streamlit's heading font */
+.stApp h1, .stApp h2, .stApp h3, [data-testid="stMarkdownContainer"] { font-family: 'Hanken Grotesk', system-ui, sans-serif !important; } /* beat Streamlit's heading font */
 .brand { display: flex; gap: 6px; align-items: center; margin-bottom: .25rem; }
 .brand i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.brand b { font-size: 1.05rem; margin-left: 6px; color: #1F2328; }
+.brand b { font-size: 1.05rem; margin-left: 6px; color: #4a4741; font-weight: 600; }
 .hero { border-radius: 24px; padding: 22px 22px 18px; color: #fff; margin: .5rem 0 1.25rem; }
 .hero small { display: block; font-size: .85rem; opacity: .92; }
-.hero h2 { color: #fff; font-size: clamp(1.6rem, 6vw, 2.3rem); font-weight: 800; line-height: 1.1; margin: .35rem 0 .5rem; padding: 0; }
+.hero h2 { color: #fff; font-family: Newsreader, Georgia, serif !important; font-size: clamp(1.9rem, 7vw, 2.8rem); font-weight: 300; line-height: 1.12; margin: .35rem 0 .5rem; padding: 0; }
 .hero p { margin: 0; font-size: .95rem; }
 .tl { display: flex; gap: 3px; height: 64px; border-radius: 14px; overflow: hidden; }
 .tl div { min-width: 4px; display: flex; align-items: flex-end; padding: 8px; box-sizing: border-box;
@@ -48,23 +48,24 @@ h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 .tl { transform-origin: left center; animation: grow .5s cubic-bezier(.22, 1, .36, 1) both; }
 @keyframes grow { from { transform: scaleX(.85); opacity: .35; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tl { animation: none; } }
-.axis { font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; font-size: .8rem; color: #57606A; margin: 6px 2px 1.5rem; }
+.axis { font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; font-size: .8rem; color: #4a4741; margin: 6px 2px 1.5rem; }
 .acts { display: flex; flex-direction: column; gap: 14px; margin-bottom: 1.25rem; }
 .act { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
 .act span { font-weight: 600; }
-.act b { font-size: 1.35rem; font-variant-numeric: tabular-nums; color: #1F2328; }
-.act .bar { grid-column: 1 / -1; height: 10px; border-radius: 5px; background: #EEF1F5; overflow: hidden; }
+.act b { font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #1c1b1a; }
+.act .bar { grid-column: 1 / -1; height: 10px; border-radius: 5px; background: #e1dcd3; overflow: hidden; }
 .act .bar i { display: block; height: 100%; border-radius: 5px; }
-.none { font-size: .9rem; color: #57606A; margin: 0 0 1rem; }
+.none { font-size: .9rem; color: #4a4741; margin: 0 0 1rem; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px; }
-.checks span { overflow-wrap: anywhere; font-size: .85rem; padding: 6px 12px; border-radius: 999px; background: #EEF1F5; color: #1F2328; }
-.checks .warn { background: #FEF7E0; color: #8A5A00; }
+.checks span { overflow-wrap: anywhere; font-size: .85rem; padding: 8px 14px; border-radius: 9999px; background: #fff; border: 1px solid #e1dcd3; color: #1c1b1a; }
+.checks .warn { background: #f3e6c8; border-color: #ddbe78; color: #684d07; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: .25rem 0 1rem; }
-.stats div { background: #F6F8FC; border-radius: 14px; padding: 12px 14px; }
-.stats small { display: block; font-size: .8rem; color: #57606A; }
-.stats b { font-size: 1.3rem; font-variant-numeric: tabular-nums; color: #1F2328; }
-.unsure { background: #FEF7E0; color: #8A5A00; border-radius: 14px; padding: 12px 14px; font-size: .9rem; margin: -.5rem 0 1.25rem; }
-.howto { border: 1px solid #E3E7EE; border-radius: 18px; padding: 18px 20px; }
+.stats div { background: #fff; border: 1px solid #e1dcd3; border-radius: 24px; padding: 16px 18px; }
+.stats small { display: block; font-size: .8rem; color: #4a4741; }
+.stats b { font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #1c1b1a; }
+.unsure { background: #f3e6c8; color: #684d07; border-radius: 24px; padding: 16px 18px; font-size: .9rem; margin: -.5rem 0 1.25rem; }
+.howto { background: #fff; border: 1px solid #e1dcd3; border-radius: 24px; padding: 22px 24px; }
+hr, [data-baseweb=tab-border] { background-color: #e1dcd3 !important; }
 .howto code { font-size: .85rem; }
 </style>
 <div class="brand"><span aria-hidden="true" style="display:contents"><i style="background:#4285F4"></i><i style="background:#EA4335"></i><i style="background:#FBBC05"></i><i style="background:#34A853"></i></span><b>Activity Recognition</b></div>""",
@@ -92,7 +93,7 @@ def headline(share):
     """'Mostly walking, with short stretches of standing.' from activity window counts."""
     main = share.idxmax()
     rest = [STYLE[a][4].lower() for a in share.sort_values(ascending=False).index if a != main and share[a] > 0]
-    s = f"Mostly {STYLE[main][4].lower()}"
+    s = f"Mostly <em>{STYLE[main][4].lower()}</em>"
     return s + (f", with short stretches of {listing(rest)}." if rest else ".")
 
 
