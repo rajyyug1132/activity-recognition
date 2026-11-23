@@ -5,7 +5,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, f1_score, ConfusionMatrixDisplay
 
-ACTS = ["WALKING", "WALKING_UPSTAIRS", "WALKING_DOWNSTAIRS", "SITTING", "STANDING", "LAYING"]
+from inference import ACTS
 
 
 def report(y_true, y_pred, out_dir, name="model") -> dict:
