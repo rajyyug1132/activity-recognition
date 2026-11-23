@@ -6,6 +6,8 @@ gravity_cutoff_hz: 0.3
 activities: [WALKING, WALKING_UPSTAIRS, WALKING_DOWNSTAIRS, SITTING, STANDING, LAYING]
 split:
   uci: official          # 21 train subjects, 9 test subjects
+  uci_val: [3, 22, 25]   # held out from UCI train by person (seed 42)
   own_train: [p1, p2, p3]
   own_test: [p4, p5]
 seed: 42
+norm_stats: config/norm_stats.npz   # train-only per-channel mean/std
