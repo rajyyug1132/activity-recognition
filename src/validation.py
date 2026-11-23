@@ -25,8 +25,8 @@ def validate_csv(df, cfg) -> dict:
     gaps = np.diff(t)
     est_hz = float(1 / np.median(gaps))
     want = cfg["sampling_rate_hz"]
-    if abs(est_hz - want) > HZ_TOL * want:
-        issues.append(f"sampling rate {est_hz:.1f} Hz, expected ~{want} Hz")
+    if est_hz < (1 - HZ_TOL) * want:  # faster is fine: to_windows resamples to 50 Hz
+        issues.append(f"sampling rate {est_hz:.1f} Hz, need >= {want} Hz")
     if np.percentile(gaps, 95) > 2 * np.median(gaps):  # ponytail: crude jitter test
         issues.append("uneven sampling (high gap spread)")
     n_gaps = int((gaps > SHORT_GAP).sum())
