@@ -30,7 +30,10 @@ st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap');
 html, body, .stApp, h1, h2, h3, p, label, button, input, textarea { font-family: Figtree, system-ui, sans-serif; }
 .block-container { padding-top: 1.5rem; padding-bottom: 4rem; max-width: 760px; }
+@media (min-width: 1024px) { .block-container { max-width: 1080px; } }
+h3.sec { font-size: 1rem; font-weight: 700; color: #1F2328; margin: 0 0 .75rem; padding: 0; }
 h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
+.stApp h1, .stApp h2, .stApp h3 { font-family: Figtree, system-ui, sans-serif !important; } /* beat Streamlit's heading font */
 .brand { display: flex; gap: 6px; align-items: center; margin-bottom: .25rem; }
 .brand i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .brand b { font-size: 1.05rem; margin-left: 6px; color: #1F2328; }
@@ -40,10 +43,10 @@ h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 .hero p { margin: 0; font-size: .95rem; }
 .tl { display: flex; gap: 3px; height: 64px; border-radius: 14px; overflow: hidden; }
 .tl div { min-width: 4px; display: flex; align-items: flex-end; padding: 8px; box-sizing: border-box;
-  overflow: hidden; font-size: .8rem; font-weight: 600; white-space: nowrap;
-  transform-origin: left; animation: grow .45s cubic-bezier(.22, 1, .36, 1) both; }
-@keyframes grow { from { transform: scaleX(.6); opacity: .4; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .tl div { animation: none; } }
+  overflow: hidden; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.tl { animation: wipe .6s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes wipe { from { clip-path: inset(0 55% 0 0 round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+@media (prefers-reduced-motion: reduce) { .tl { animation: none; } }
 .axis { display: flex; justify-content: space-between; font-size: .8rem; color: #57606A; margin: 6px 2px 1.5rem; }
 .acts { display: flex; flex-direction: column; gap: 14px; margin-bottom: 1.25rem; }
 .act { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
@@ -55,6 +58,11 @@ h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px; }
 .checks span { font-size: .85rem; padding: 6px 12px; border-radius: 999px; background: #EEF1F5; color: #1F2328; }
 .checks .warn { background: #FEF7E0; color: #8A5A00; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: .25rem 0 1rem; }
+.stats div { background: #F6F8FC; border-radius: 14px; padding: 12px 14px; }
+.stats small { display: block; font-size: .8rem; color: #57606A; }
+.stats b { font-size: 1.3rem; font-variant-numeric: tabular-nums; color: #1F2328; }
+.unsure { background: #FEF7E0; color: #8A5A00; border-radius: 14px; padding: 12px 14px; font-size: .9rem; margin: -.5rem 0 1.25rem; }
 .howto { border: 1px solid #E3E7EE; border-radius: 18px; padding: 18px 20px; }
 .howto code { font-size: .85rem; }
 </style>
@@ -109,10 +117,15 @@ df = pd.read_csv(up)
 rep = validate_csv(df, cfg)
 issues, warns = rep["issues"], rep.get("warnings", [])
 
+def stats(pairs):
+    """Compact label/value grid: 2 across on a phone, more on desktop."""
+    cells = "".join(f'<div><small>{k}</small><b>{v}</b></div>' for k, v in pairs)
+    st.markdown(f'<div class="stats">{cells}</div>', unsafe_allow_html=True)
+
+
 with details:
-    m = st.columns(2)
-    m[0].metric("Sampling rate", f"{rep['est_hz']:.1f} Hz" if rep["est_hz"] else "n/a")
-    m[1].metric("Status", "Valid" if rep["ok"] else "Rejected")
+    stats([("Sampling rate", f"{rep['est_hz']:.1f} Hz" if rep["est_hz"] else "n/a"),
+           ("Status", "Valid" if rep["ok"] else "Rejected")])
     for msg in issues:
         st.error(msg)
     for msg in warns:
@@ -138,34 +151,51 @@ with story:
         f'<div class="hero" style="background:{STYLE[main][3]}"><small>{mmss(dur)} recording · {name}</small>'
         f'<h2>{headline(share)}</h2><p>{STYLE[main][4]} for {mmss(share[main] * step)}, '
         f'{share[main] / len(pred):.0%} of the time.</p></div>', unsafe_allow_html=True)
+    if (pred["confidence"] < 0.6).mean() > 0.5:
+        st.markdown('<p class="unsure">The model is unsure about most of this recording. Check that the phone '
+                    'was at the waist and the units are g and rad/s; per-window confidence is in Details.</p>',
+                    unsafe_allow_html=True)
 
     runs = pred.groupby((pred["activity"] != pred["activity"].shift()).cumsum())["activity"].agg(["first", "size"])
     bars = "".join(
-        f'<div style="flex:{n};background:{STYLE[a][0]};color:{STYLE[a][1]};animation-delay:{i * 40}ms">'
+        f'<div style="flex:{n};background:{STYLE[a][0]};color:{STYLE[a][1]}">'
         f'{STYLE[a][4] if n / len(pred) > 0.2 else ""}</div>'
-        for i, (a, n) in enumerate(runs.itertuples(index=False)))
+        for a, n in runs.itertuples(index=False))
     st.markdown(f'<div class="tl" role="img" aria-label="Activity timeline">{bars}</div>'
                 f'<div class="axis"><span>0:00</span><span>{mmss(dur / 2)}</span><span>{mmss(dur)}</span></div>',
                 unsafe_allow_html=True)
 
+    # phone: stacked; desktop: activities beside the file checks
+    left, right = st.columns([3, 2], gap="large")
     seen = share[share > 0].sort_values(ascending=False)
     rows = "".join(
         f'<div class="act"><span style="color:{STYLE[a][3]}">{STYLE[a][4]}</span><b>{mmss(n * step)}</b>'
         f'<div class="bar"><i style="width:{n / len(pred):.0%};background:{STYLE[a][0]}"></i></div></div>'
         for a, n in seen.items())
     unseen = [STYLE[a][4].lower() for a in ACTS if share[a] == 0]
-    st.markdown(f'<div class="acts">{rows}</div>'
-                + (f'<p class="none">Not detected: {listing(unseen)}.</p>' if unseen else ""),
-                unsafe_allow_html=True)
+    left.markdown('<h3 class="sec">Time per activity</h3>'
+                  f'<div class="acts">{rows}</div>'
+                  + (f'<p class="none">Not detected: {listing(unseen)}.</p>' if unseen else ""),
+                  unsafe_allow_html=True)
 
     chips = [f"<span>{rep['est_hz']:.0f} Hz, resampled to {cfg['sampling_rate_hz']} Hz</span>",
              "<span>No missing values</span>" if not issues else ""] + \
             [f'<span class="warn">{w}</span>' for w in warns]
-    st.markdown(f'<div class="checks">{"".join(chips)}</div>', unsafe_allow_html=True)
+    right.markdown(f'<h3 class="sec">File checks</h3><div class="checks">{"".join(chips)}</div>',
+                   unsafe_allow_html=True)
 
+low = int((pred["confidence"] < 0.6).sum())
 with details:
-    st.subheader(f"Predictions ({name})")
-    st.bar_chart(share.rename(lambda a: STYLE[a][4]), horizontal=True)
-    st.dataframe(pred, hide_index=True, width="stretch")
+    st.subheader("Predictions")
+    st.caption(f"{name} · one row per {cfg['window_samples'] / cfg['sampling_rate_hz']:.2f} s window, "
+               f"every {step:.2f} s")
+    stats([("Windows", len(pred)), ("Unsure (under 60%)", low)])
+    st.line_chart(pred.set_index("start_time")["confidence"], height=180, color="#4285F4",
+                  x_label="time (s)", y_label="confidence")
+    st.dataframe(pred.assign(activity=pred["activity"].map(lambda a: STYLE[a][4])), hide_index=True, width="stretch", height=320, column_config={
+        "start_time": st.column_config.NumberColumn("Start (s)", format="%.2f"),
+        "activity": st.column_config.TextColumn("Activity"),
+        "confidence": st.column_config.ProgressColumn("Confidence", min_value=0.0, max_value=1.0, format="%.2f"),
+    })
     st.download_button("Download predictions CSV", pred.to_csv(index=False), "predictions.csv", "text/csv",
-                       width="stretch")
+                       width="stretch", type="primary")
