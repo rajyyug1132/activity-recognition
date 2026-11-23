@@ -4,11 +4,22 @@ IBM Skill Lab · Review 2 · 28 Nov 2026
 Team: Yyug (lead), Nihal, Shravya, Yash, Yashaswini (names and USNs on the title page of the PDF)
 
 ## 1. Problem and objectives
-Recognise six activities (walking, walking upstairs, walking downstairs, sitting, standing, lying) from a phone's accelerometer and gyroscope. Target: 90%+ accuracy on people the model never saw during training.
+**Problem.** Every smartphone carries an accelerometer and a gyroscope, but turning their raw signals into "what is this person doing right now" is hard. The same activity looks different from person to person, phone to phone and recording to recording. A model that scores well on the people it was trained on often drops sharply on someone new. Public datasets such as UCI HAR solve the labelling problem but were recorded on one phone model in one lab, so a model trained only on them may not carry over to our own phones.
+
+**Objectives.**
+
+1. Recognise six activities (walking, walking upstairs, walking downstairs, sitting, standing, lying) from a waist-worn phone's accelerometer and gyroscope.
+2. Reach **90%+ accuracy** on people the model never saw, with every split made by person: UCI HAR 21 train / 9 test subjects, our own data p1–p3 train / p4–p5 test.
+3. Report macro F1, F1 per activity and a confusion matrix, not accuracy alone, so a weak activity cannot hide behind a strong average.
+4. Show the model is not overfitting with train vs validation loss and accuracy curves, validated on held-out training subjects.
+5. Learn on UCI HAR first, then fine-tune on our own recordings, collected with the same placement, sensors and sampling rate as UCI.
+6. Deliver a CSV-upload app that validates a recording (sampling rate, missing readings) before predicting, and shows an activity timeline.
+
+**Success measure.** Accuracy ≥ 0.90 and macro F1 reported on the UCI test subjects (Review 2) and on our own test people p4–p5 (Review 3).
 
 ## 2. Scope
-In: phone worn at the waist, recordings exported as CSV and uploaded to a web app.
-Out (for now): live streaming from the phone, other placements, other activities.
+- In: phone worn at the waist, recordings exported as CSV and uploaded to a web app.
+- Out (for now): live streaming from the phone, other placements, other activities.
 
 ## 3. System architecture
 
@@ -74,5 +85,5 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 | Someone can't push to GitHub | Send files to Yyug to commit |
 
 ## 11. Progress and plan to Review 3
-Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline, first CNN with learning curves, app skeleton.
-Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
+- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline, first CNN with learning curves, app skeleton.
+- Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
