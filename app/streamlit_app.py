@@ -34,6 +34,7 @@ html, body, .stApp, h1, h2, h3, p, label, button, input, textarea { font-family:
 @media (min-width: 1024px) { .block-container { max-width: 1080px; } }
 h3.sec { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4a4741; margin: 0 0 1rem; padding: 0; }
 h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
+[data-testid="stHeaderActionElements"] { display: none; } /* no hover link icons on headings */
 .stApp h1, .stApp h2, .stApp h3, [data-testid="stMarkdownContainer"] { font-family: 'Hanken Grotesk', system-ui, sans-serif !important; } /* beat Streamlit's heading font */
 .brand { display: flex; gap: 6px; align-items: center; margin-bottom: .25rem; }
 .brand i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
