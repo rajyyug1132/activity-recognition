@@ -33,3 +33,40 @@ def split_val(train, val_subjects):
     m = np.isin(train["subject"], val_subjects)
     return ({k: v[~m] for k, v in train.items()},
             {k: v[m] for k, v in train.items()})
+
+
+OWN_ACTS = ["walking", "walking_upstairs", "walking_downstairs", "sitting", "standing", "lying"]  # label 0-5
+
+
+def load_own(root, cfg) -> dict:
+    """Our processed recordings -> {"X" [N,128,9], "y" [N] (0-5), "subject" [N] ("p1".."p5")}.
+
+    Files follow the protocol name `<person>_<activity>_<take>.csv`, e.g. `p1_walking_01.csv`;
+    the activity in the name is the label. A badly named or invalid file raises, naming the file,
+    so a mislabelled recording can never slip into training.
+    """
+    import glob
+    import os
+    import re
+    import pandas as pd
+    from preprocess import to_windows
+    from validation import validate_csv
+
+    pat = re.compile(rf"^(p\d+)_({'|'.join(OWN_ACTS)})_\d+\.csv$")
+    X, y, subj = [], [], []
+    for path in sorted(glob.glob(os.path.join(root, "*.csv"))):
+        name = os.path.basename(path)
+        m = pat.match(name)
+        if not m:
+            raise ValueError(f"{name}: expected <person>_<activity>_<take>.csv with activity in {OWN_ACTS}")
+        df = pd.read_csv(path)
+        rep = validate_csv(df, cfg)
+        if not rep["ok"]:
+            raise ValueError(f"{name}: failed validation: {rep['issues']}")
+        w = to_windows(df, cfg)
+        X.append(w)
+        y += [OWN_ACTS.index(m.group(2))] * len(w)
+        subj += [m.group(1)] * len(w)
+    if not X:
+        raise FileNotFoundError(f"no CSVs in {root}")
+    return {"X": np.concatenate(X), "y": np.array(y), "subject": np.array(subj)}
