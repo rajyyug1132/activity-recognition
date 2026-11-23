@@ -8,8 +8,8 @@ HZ_TOL = 0.10                       # allowed relative error vs cfg rate
 
 
 def validate_csv(df, cfg) -> dict:
-    """Checks columns, sampling rate, missing readings. Returns {ok, issues, est_hz}."""
-    issues, est_hz = [], None
+    """Checks columns, sampling rate, missing readings. Returns {ok, issues, est_hz, warnings}; short gaps are warnings only."""
+    issues, warnings, est_hz = [], [], None
     missing = [c for c in COLS if c not in df.columns]
     if missing:
         return {"ok": False, "est_hz": None, "issues": [f"missing columns: {missing}"]}
@@ -31,7 +31,7 @@ def validate_csv(df, cfg) -> dict:
         issues.append("uneven sampling (high gap spread)")
     n_gaps = int((gaps > SHORT_GAP).sum())
     if n_gaps:
-        issues.append(f"{n_gaps} time gaps > {SHORT_GAP}s (largest {gaps.max():.2f}s)")
+        warnings.append(f"{n_gaps} time gaps > {SHORT_GAP}s (largest {gaps.max():.2f}s)")
     if gaps.max() > LONG_GAP:
         issues.append(f"long gap > {LONG_GAP}s: reject file")
 
@@ -47,4 +47,4 @@ def validate_csv(df, cfg) -> dict:
     if abs(np.median(np.linalg.norm(acc, axis=1)) - 9.8) < 1.0:
         issues.append("median |acc| ~9.8: looks like m/s^2, divide by 9.80665")
 
-    return {"ok": not issues, "est_hz": est_hz, "issues": issues}
+    return {"ok": not issues, "est_hz": est_hz, "issues": issues, "warnings": warnings}

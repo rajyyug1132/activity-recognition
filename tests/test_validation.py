@@ -29,6 +29,11 @@ def test_validation():
     text = " ".join(r["issues"])
     assert not r["ok"] and "m/s^2" in text and "long gap" in text, r
 
+    short = make()
+    short["timestamp"] += (short.index >= 250) * 0.3  # one 0.3 s gap: warning, still ok
+    r = validate_csv(short, CFG)
+    assert r["ok"] and r["warnings"], r
+
     assert not validate_csv(make().drop(columns="gyro_z"), CFG)["ok"]
     assert not validate_csv(make(n=100), CFG)["ok"]  # 2 s < 2.56 s
 
