@@ -9,3 +9,9 @@ Setup: `pip install -r requirements.txt`. Data lives in Google Drive; put it in 
 | Yash | src/features.py, models.py, train.py, evaluate.py |
 | Yashaswini | src/inference.py, app/streamlit_app.py |
 | Yyug | docs/HLD.md |
+
+## Team
+
+| Name | USN |
+|---|---|
+| Yash Chandra | 1BM25CS318 |
