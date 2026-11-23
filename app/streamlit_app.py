@@ -28,12 +28,13 @@ STYLE = {
 st.set_page_config(page_title="Activity Recognition", page_icon=":material/directions_run:", layout="centered")
 st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap');
+html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 html, body, .stApp, h1, h2, h3, p, label, button, input, textarea { font-family: Figtree, system-ui, sans-serif; }
 .block-container { padding-top: 1.5rem; padding-bottom: 4rem; max-width: 760px; }
 @media (min-width: 1024px) { .block-container { max-width: 1080px; } }
 h3.sec { font-size: 1rem; font-weight: 700; color: #1F2328; margin: 0 0 .75rem; padding: 0; }
 h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
-.stApp h1, .stApp h2, .stApp h3 { font-family: Figtree, system-ui, sans-serif !important; } /* beat Streamlit's heading font */
+.stApp h1, .stApp h2, .stApp h3, [data-testid="stMarkdownContainer"] { font-family: Figtree, system-ui, sans-serif !important; } /* beat Streamlit's heading font */
 .brand { display: flex; gap: 6px; align-items: center; margin-bottom: .25rem; }
 .brand i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .brand b { font-size: 1.05rem; margin-left: 6px; color: #1F2328; }
@@ -44,10 +45,10 @@ h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 .tl { display: flex; gap: 3px; height: 64px; border-radius: 14px; overflow: hidden; }
 .tl div { min-width: 4px; display: flex; align-items: flex-end; padding: 8px; box-sizing: border-box;
   overflow: hidden; font-size: .8rem; font-weight: 600; white-space: nowrap; }
-.tl { animation: wipe .6s cubic-bezier(.22, 1, .36, 1) both; }
-@keyframes wipe { from { clip-path: inset(0 55% 0 0 round 14px); } to { clip-path: inset(0 0 0 0 round 14px); } }
+.tl { transform-origin: left center; animation: grow .5s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes grow { from { transform: scaleX(.85); opacity: .35; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tl { animation: none; } }
-.axis { display: flex; justify-content: space-between; font-size: .8rem; color: #57606A; margin: 6px 2px 1.5rem; }
+.axis { font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; font-size: .8rem; color: #57606A; margin: 6px 2px 1.5rem; }
 .acts { display: flex; flex-direction: column; gap: 14px; margin-bottom: 1.25rem; }
 .act { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
 .act span { font-weight: 600; }
@@ -56,7 +57,7 @@ h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 .act .bar i { display: block; height: 100%; border-radius: 5px; }
 .none { font-size: .9rem; color: #57606A; margin: 0 0 1rem; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px; }
-.checks span { font-size: .85rem; padding: 6px 12px; border-radius: 999px; background: #EEF1F5; color: #1F2328; }
+.checks span { overflow-wrap: anywhere; font-size: .85rem; padding: 6px 12px; border-radius: 999px; background: #EEF1F5; color: #1F2328; }
 .checks .warn { background: #FEF7E0; color: #8A5A00; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: .25rem 0 1rem; }
 .stats div { background: #F6F8FC; border-radius: 14px; padding: 12px 14px; }
@@ -66,7 +67,7 @@ h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 .howto { border: 1px solid #E3E7EE; border-radius: 18px; padding: 18px 20px; }
 .howto code { font-size: .85rem; }
 </style>
-<div class="brand"><i style="background:#4285F4"></i><i style="background:#EA4335"></i><i style="background:#FBBC05"></i><i style="background:#34A853"></i><b>Activity Recognition</b></div>""",
+<div class="brand"><span aria-hidden="true" style="display:contents"><i style="background:#4285F4"></i><i style="background:#EA4335"></i><i style="background:#FBBC05"></i><i style="background:#34A853"></i></span><b>Activity Recognition</b></div>""",
             unsafe_allow_html=True)
 
 
@@ -113,7 +114,11 @@ Columns: <code>timestamp</code> (s), <code>acc_x..z</code> (g), <code>gyro_x..z<
                    unsafe_allow_html=True)
     st.stop()
 
-df = pd.read_csv(up)
+try:
+    df = pd.read_csv(up)
+except Exception as e:  # not a CSV at all, or unreadable encoding
+    story.error(f"Couldn't read this file as a CSV ({type(e).__name__}). Export it from the logging app as CSV and upload it again.")
+    st.stop()
 rep = validate_csv(df, cfg)
 issues, warns = rep["issues"], rep.get("warnings", [])
 
@@ -161,7 +166,8 @@ with story:
         f'<div style="flex:{n};background:{STYLE[a][0]};color:{STYLE[a][1]}">'
         f'{STYLE[a][4] if n / len(pred) > 0.2 else ""}</div>'
         for a, n in runs.itertuples(index=False))
-    st.markdown(f'<div class="tl" role="img" aria-label="Activity timeline">{bars}</div>'
+    tl_label = "Timeline: " + ", then ".join(f"{STYLE[a][4]} {mmss(n * step)}" for a, n in runs.itertuples(index=False))
+    st.markdown(f'<div class="tl" role="img" aria-label="{tl_label}">{bars}</div>'
                 f'<div class="axis"><span>0:00</span><span>{mmss(dur / 2)}</span><span>{mmss(dur)}</span></div>',
                 unsafe_allow_html=True)
 
@@ -170,10 +176,10 @@ with story:
     seen = share[share > 0].sort_values(ascending=False)
     rows = "".join(
         f'<div class="act"><span style="color:{STYLE[a][3]}">{STYLE[a][4]}</span><b>{mmss(n * step)}</b>'
-        f'<div class="bar"><i style="width:{n / len(pred):.0%};background:{STYLE[a][0]}"></i></div></div>'
+        f'<div class="bar" aria-hidden="true"><i style="width:{n / len(pred):.0%};background:{STYLE[a][0]}"></i></div></div>'
         for a, n in seen.items())
     unseen = [STYLE[a][4].lower() for a in ACTS if share[a] == 0]
-    left.markdown('<h3 class="sec">Time per activity</h3>'
+    left.markdown('<h3 class="sec">Time per Activity</h3>'
                   f'<div class="acts">{rows}</div>'
                   + (f'<p class="none">Not detected: {listing(unseen)}.</p>' if unseen else ""),
                   unsafe_allow_html=True)
@@ -181,7 +187,7 @@ with story:
     chips = [f"<span>{rep['est_hz']:.0f} Hz, resampled to {cfg['sampling_rate_hz']} Hz</span>",
              "<span>No missing values</span>" if not issues else ""] + \
             [f'<span class="warn">{w}</span>' for w in warns]
-    right.markdown(f'<h3 class="sec">File checks</h3><div class="checks">{"".join(chips)}</div>',
+    right.markdown(f'<h3 class="sec">File Checks</h3><div class="checks">{"".join(chips)}</div>',
                    unsafe_allow_html=True)
 
 low = int((pred["confidence"] < 0.6).sum())
