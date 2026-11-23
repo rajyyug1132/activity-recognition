@@ -1,7 +1,9 @@
 """Owner: Shravya."""
 import numpy as np
 
-COLS = ["timestamp", "acc_x", "acc_y", "acc_z", "gyro_x", "gyro_y", "gyro_z"]
+from preprocess import COLS as SENSORS
+
+COLS = ["timestamp"] + SENSORS
 MAX_ACC_G, MAX_GYRO = 8.0, 35.0     # sane sensor limits (g, rad/s)
 SHORT_GAP, LONG_GAP = 0.1, 1.0      # s: gaps > SHORT_GAP are counted, > LONG_GAP rejected
 HZ_TOL = 0.10                       # allowed relative error vs cfg rate
