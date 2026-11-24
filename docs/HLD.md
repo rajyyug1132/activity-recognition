@@ -51,7 +51,8 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 - **Models (Yash):** Random Forest (300 trees) on the 561 UCI features as a baseline; 1D-CNN (2 conv layers, dropout 0.5, dense 100) on raw windows.
 - **Training and evaluation (Yash):** validation on 3 held-out training subjects, early stopping on validation loss; reports accuracy, macro F1, F1 per activity, confusion matrix and learning curves.
 - **Inference (Yashaswini):** `predict_csv` returns one row per window: start time, activity, confidence.
-- **App (Yashaswini):** shows the validation report, an activity timeline, counts per activity and a predictions CSV download.
+- **App (Yashaswini):** mobile-first Streamlit app with Story and Details tabs; shows the validation report, an activity timeline, counts per activity and a predictions CSV download.
+- **Fine-tuning (Yash):** `train.fine_tune` clones the UCI-trained model, freezes all but the last 2 layers and trains with Adam 1e-4 on our recordings (`data_loader.load_own`).
 
 ## 5. Data design
 | Dataset | People | Split | Format | Storage |
@@ -63,6 +64,8 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 1. Random Forest baseline on UCI features.
 2. 1D-CNN on raw UCI windows (LSTM as a comparison).
 3. Pre-train on UCI, then fine-tune on our data: freeze all but the last two layers, Adam(1e-4), train on p1–p3, test on p4–p5. Compare: UCI model unchanged, fine-tuned, and trained only on our data.
+
+Results so far (UCI test set): RF 92.9% accuracy, 0.927 macro F1; 1D-CNN 92.6%, 0.926 (best epoch 4 of 9, early stopping). LSTM comparison in progress, see `reports/results.md`.
 
 ## 7. Data flow
 CSV upload → validate → resample to 50 Hz → filter → gravity split → 128-sample windows → normalise → model → activity per window → timeline in the app.
@@ -85,5 +88,5 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 | Someone can't push to GitHub | Send files to Yyug to commit |
 
 ## 11. Progress and plan to Review 3
-- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline, first CNN with learning curves, app skeleton.
+- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (92.6%) with learning curves, fine-tuning code ready (notebook 04), app redesign (Story/Details tabs).
 - Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
