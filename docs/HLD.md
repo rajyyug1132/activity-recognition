@@ -62,10 +62,10 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 
 ## 6. Model design
 1. Random Forest baseline on UCI features.
-2. 1D-CNN on raw UCI windows (LSTM as a comparison).
+2. 1D-CNN on raw UCI windows; LSTM (2x64) as a comparison.
 3. Pre-train on UCI, then fine-tune on our data: freeze all but the last two layers, Adam(1e-4), train on p1–p3, test on p4–p5. Compare: UCI model unchanged, fine-tuned, and trained only on our data.
 
-Results so far (UCI test set): RF 92.9% accuracy, 0.927 macro F1; 1D-CNN 92.6%, 0.926 (best epoch 4 of 9, early stopping). LSTM comparison in progress, see `reports/results.md`.
+Results so far (UCI test set): RF 92.9% accuracy, 0.927 macro F1; 1D-CNN 92.6%, 0.926 (best epoch 4 of 9, early stopping). LSTM 88.1%, 0.875 (best epoch 5 of 10): below the CNN, weakest on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model. All runs: `reports/results.md`.
 
 ## 7. Data flow
 CSV upload → validate → resample to 50 Hz → filter → gravity split → 128-sample windows → normalise → model → activity per window → timeline in the app.
@@ -88,5 +88,5 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 | Someone can't push to GitHub | Send files to Yyug to commit |
 
 ## 11. Progress and plan to Review 3
-- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (92.6%) with learning curves, fine-tuning code ready (notebook 04), app redesign (Story/Details tabs).
+- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (92.6%) with learning curves, LSTM comparison (88.1%), fine-tuning code ready (notebook 04), app redesign (Story/Details tabs).
 - Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
