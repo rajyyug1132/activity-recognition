@@ -11,7 +11,7 @@ import streamlit as st
 import yaml
 
 sys.path.insert(0, "src")
-from inference import ACTS, DummyModel, predict_csv
+from inference import ACTS, DummyModel, predict_csv, smooth
 from validation import validate_csv
 
 MODEL = "models/cnn_uci.keras"
@@ -145,6 +145,8 @@ if not rep["ok"]:
 
 model, name = load_model()
 pred = predict_csv(df, model, cfg)
+if st.sidebar.checkbox("Smooth predictions", value=True, help=f"Majority vote over {cfg['smooth_window']} windows removes single-window flicker."):
+    pred = smooth(pred, cfg["smooth_window"])
 if pred.empty:
     story.warning("Too short: record at least a few seconds so one full window fits.")
     st.stop()
