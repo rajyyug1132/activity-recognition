@@ -13,6 +13,15 @@ streamlit run app/streamlit_app.py
 
 Data lives in Google Drive (`HAR-data/`); put it in `data/` (gitignored). Model files go to Drive too, never the repo.
 
+## App
+
+Upload a phone recording (CSV) and get a timeline of what you were doing. Predictions currently come from a dummy model until the trained one is wired in.
+
+![Story tab](reports/figures/app_story.png)
+![Details tab](reports/figures/app_details.png)
+
+<img src="reports/figures/app_mobile.png" alt="Mobile layout" width="240">
+
 ## Results
 
 UCI HAR split by person: 21 people to train (3 of them held out for validation), 9 never-seen people to test.
