@@ -4,11 +4,22 @@ IBM Skill Lab · Review 2 · 28 Nov 2026
 Team: Yyug (lead), Nihal, Shravya, Yash, Yashaswini (names and USNs on the title page of the PDF)
 
 ## 1. Problem and objectives
-Recognise six activities (walking, walking upstairs, walking downstairs, sitting, standing, lying) from a phone's accelerometer and gyroscope. Target: 90%+ accuracy on people the model never saw during training.
+**Problem.** Every smartphone carries an accelerometer and a gyroscope, but turning their raw signals into "what is this person doing right now" is hard. The same activity looks different from person to person, phone to phone and recording to recording. A model that scores well on the people it was trained on often drops sharply on someone new. Public datasets such as UCI HAR solve the labelling problem but were recorded on one phone model in one lab, so a model trained only on them may not carry over to our own phones.
+
+**Objectives.**
+
+1. Recognise six activities (walking, walking upstairs, walking downstairs, sitting, standing, lying) from a waist-worn phone's accelerometer and gyroscope.
+2. Reach **90%+ accuracy** on people the model never saw, with every split made by person: UCI HAR 21 train / 9 test subjects, our own data p1–p3 train / p4–p5 test.
+3. Report macro F1, F1 per activity and a confusion matrix, not accuracy alone, so a weak activity cannot hide behind a strong average.
+4. Show the model is not overfitting with train vs validation loss and accuracy curves, validated on held-out training subjects.
+5. Learn on UCI HAR first, then fine-tune on our own recordings, collected with the same placement, sensors and sampling rate as UCI.
+6. Deliver a CSV-upload app that validates a recording (sampling rate, missing readings) before predicting, and shows an activity timeline.
+
+**Success measure.** Accuracy ≥ 0.90 and macro F1 reported on the UCI test subjects (Review 2) and on our own test people p4–p5 (Review 3).
 
 ## 2. Scope
-In: phone worn at the waist, recordings exported as CSV and uploaded to a web app.
-Out (for now): live streaming from the phone, other placements, other activities.
+- In: phone worn at the waist, recordings exported as CSV and uploaded to a web app.
+- Out (for now): live streaming from the phone, other placements, other activities.
 
 ## 3. System architecture
 
@@ -40,7 +51,8 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 - **Models (Yash):** Random Forest (300 trees) on the 561 UCI features as a baseline; 1D-CNN (2 conv layers, dropout 0.5, dense 100) on raw windows.
 - **Training and evaluation (Yash):** validation on 3 held-out training subjects, early stopping on validation loss; reports accuracy, macro F1, F1 per activity, confusion matrix and learning curves.
 - **Inference (Yashaswini):** `predict_csv` returns one row per window: start time, activity, confidence.
-- **App (Yashaswini):** shows the validation report, an activity timeline, counts per activity and a predictions CSV download.
+- **App (Yashaswini):** mobile-first Streamlit app with Story and Details tabs; shows the validation report, an activity timeline, counts per activity and a predictions CSV download.
+- **Fine-tuning (Yash):** `train.fine_tune` clones the UCI-trained model, freezes all but the last 2 layers and trains with Adam 1e-4 on our recordings (`data_loader.load_own`).
 
 ## 5. Data design
 | Dataset | People | Split | Format | Storage |
@@ -50,8 +62,10 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 
 ## 6. Model design
 1. Random Forest baseline on UCI features.
-2. 1D-CNN on raw UCI windows (LSTM as a comparison).
+2. 1D-CNN on raw UCI windows; LSTM (2x64) as a comparison.
 3. Pre-train on UCI, then fine-tune on our data: freeze all but the last two layers, Adam(1e-4), train on p1–p3, test on p4–p5. Compare: UCI model unchanged, fine-tuned, and trained only on our data.
+
+Results so far (UCI test set): RF 92.9% accuracy, 0.927 macro F1; 1D-CNN 92.6%, 0.926 (best epoch 4 of 9, early stopping). LSTM 88.1%, 0.875 (best epoch 5 of 10): below the CNN, weakest on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model. All runs: `reports/results.md`.
 
 ## 7. Data flow
 CSV upload → validate → resample to 50 Hz → filter → gravity split → 128-sample windows → normalise → model → activity per window → timeline in the app.
@@ -74,5 +88,5 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 | Someone can't push to GitHub | Send files to Yyug to commit |
 
 ## 11. Progress and plan to Review 3
-Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline, first CNN with learning curves, app skeleton.
-Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
+- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (92.6%) with learning curves, LSTM comparison (88.1%), fine-tuning code ready (notebook 04), app redesign (Story/Details tabs).
+- Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
