@@ -47,6 +47,16 @@ def normalize(X, path):
     return (X - s["mean"]) / s["std"]
 
 
+def gravity_angles(X) -> np.ndarray:
+    """Angle (rad) between the gravity vector and each phone axis, per sample. [N,128,9] -> [N,128,3].
+
+    Gravity = total_acc - body_acc (channels 6:9 minus 0:3). Sitting vs standing differ mostly in
+    how the waist is tilted, so these angles are a direct posture cue.
+    """
+    g = X[..., 6:9] - X[..., 0:3]
+    return np.arccos(np.clip(g / np.linalg.norm(g, axis=-1, keepdims=True), -1, 1))
+
+
 if __name__ == "__main__":
     import pandas as pd
     cfg = {"sampling_rate_hz": 50, "window_samples": 128, "overlap": 0.5,
@@ -63,4 +73,6 @@ if __name__ == "__main__":
     assert abs(mid[..., 6].mean() - 1) < 0.02                   # total acc keeps 1 g
     assert abs(mid[..., 0].mean()) < 0.02                       # body acc has gravity removed
     assert to_windows(df.iloc[:100], cfg).shape == (0, 128, 9)  # < 2.56 s -> no windows
+    a = gravity_angles(W)
+    assert a.shape == (n, 128, 3) and abs(a[2:-2, :, 0].mean()) < 0.05  # gravity along x -> angle 0
     print("ok", W.shape)
