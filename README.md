@@ -30,6 +30,7 @@ UCI HAR split by person: 21 people to train (3 of them held out for validation),
 |---|---|---|
 | Random Forest, 561 features | 92.9% | 0.927 |
 | 1D-CNN, raw signals | 92.6% | 0.926 |
+| LSTM, raw signals (comparison) | 88.1% | 0.875 |
 
 All runs: [reports/results.md](reports/results.md).
 
