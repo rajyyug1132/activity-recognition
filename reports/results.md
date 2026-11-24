@@ -15,3 +15,14 @@ One row per experiment.
 | 2026-11-24 | Dense-branch CNN scored as 5 classes, mean of 3 seeds | same | same | 0.977 | 0.972 | Yyug |
 
 **Sitting vs standing (notebook 05):** no variant reduces sit↔stand errors (baseline 162, angle channels 159, dense branch 171 of 1,023 test sit/stand windows, means over 3 seeds). The dense branch's small 6-class gain comes from other classes and is within seed noise (the baseline itself moved 0.5 pt between two identical runs). Gravity-angle histograms for sitting and standing overlap heavily: a waist phone barely tilts between the two postures, and `total_acc` already carries that tilt. Merging them into one "stationary" class gives 0.97 accuracy.
+
+## TFLite export (UCI test set, 9 unseen subjects)
+
+| Model | Size (KB) | Accuracy | Macro F1 | ms/window |
+|---|---|---|---|---|
+| Keras (reference, incl. optimizer state) | 4820 | 0.922 | 0.922 | - |
+| TFLite float32 | 1601 | 0.922 | 0.922 | 0.658 |
+| TFLite dynamic-range | 410 | 0.922 | 0.922 | 0.250 |
+| TFLite full int8 | 411 | 0.923 | 0.924 | 0.123 |
+
+Notebook `06_tflite.ipynb`. Latency = mean per window, batch 1, 1 thread, TFLite interpreter on a Windows PC CPU (not a phone). Int8 calibrated on 200 random train windows. The Keras file re-scores 0.922 here vs 0.926 in the CNN row above; the TFLite models match this re-score, so quantization costs nothing.
