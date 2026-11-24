@@ -33,16 +33,18 @@ UCI HAR split by person: 21 people to train (3 of them held out for validation),
 | Model | Accuracy | Macro F1 |
 |---|---|---|
 | Random Forest, 561 features | 92.9% | 0.927 |
-| 1D-CNN, raw signals | 92.6% | 0.926 |
+| 1D-CNN, raw signals | 91.0% | 0.909 |
 | LSTM, raw signals (comparison) | 88.1% | 0.875 |
 
 All runs: [reports/results.md](reports/results.md).
 
-**No overfitting:** early stopping kept the CNN's best epoch (4 of 9); train and validation curves stay close.
+**Overfitting is caught by early stopping:** validation loss bottoms out at epoch 2, then drifts up while training loss keeps falling, so training stops at epoch 7 and keeps the epoch-2 weights.
+
+**Run-to-run spread:** the CNN moves about ±0.4 points between training runs (91.3% ± 0.4 over 3 seeds in notebook 05; an earlier run reached 92.6%). The table shows the retrained model the app now uses.
 
 ![CNN learning curves](reports/figures/learning_curves.png)
 
-**LSTM comparison:** same split and early stopping as the CNN (best epoch 5 of 10). It trails the CNN by 4.5 points, mostly on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model.
+**LSTM comparison:** same split and early stopping as the CNN (best epoch 5 of 10). It trails the CNN by 3 points, mostly on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model.
 
 **Confusion matrices** (UCI test set). Sitting vs standing is the hardest pair for every model.
 
