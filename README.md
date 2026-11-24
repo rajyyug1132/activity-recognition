@@ -52,6 +52,18 @@ All runs: [reports/results.md](reports/results.md).
 |---|---|---|
 | ![Random Forest confusion matrix](reports/figures/rf_confusion.png) | ![CNN confusion matrix](reports/figures/cnn_confusion.png) | ![LSTM confusion matrix](reports/figures/lstm_confusion.png) |
 
+**Sitting vs standing** (`notebooks/05_sit_stand.ipynb`): giving the CNN the phone's tilt explicitly (the angle between gravity and each phone axis, as extra channels or as a separate input) does not reduce the mix-ups. About 160 of the 1,023 sitting/standing test windows stay confused either way (mean of 3 seeds). A waist phone tilts by only a few degrees between the two postures, the two angle distributions overlap, and the raw total-acceleration channels already carry that tilt. Merging the two into one "stationary" class raises accuracy from about 91% to about 97%.
+
+| Variant (mean of 3 seeds) | Accuracy, 6 classes | Accuracy, 5 classes (sit + stand merged) | Sit/stand mix-ups |
+|---|---|---|---|
+| 1D-CNN | 91.3% | 96.8% | 162 |
+| + tilt angles as extra channels | 91.4% | 96.8% | 159 |
+| + tilt angles as a separate input | 91.9% | 97.7% | 171 |
+
+The separate-input variant's small gain comes from other classes and is within seed noise.
+
+<img src="reports/figures/sitstand_best_confusion.png" alt="Confusion matrix, CNN with tilt angles as a separate input" width="420">
+
 **The data**
 
 ![Windows per activity](reports/figures/windows_per_activity.png)
