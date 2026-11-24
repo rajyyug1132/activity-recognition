@@ -15,12 +15,16 @@ Data lives in Google Drive (`HAR-data/`); put it in `data/` (gitignored). Model 
 
 ## App
 
-Upload a phone recording (CSV) and get a timeline of what you were doing. Predictions currently come from a dummy model until the trained one is wired in.
+Upload a phone recording (CSV) and get a timeline of what you were doing. The app uses the trained 1D-CNN from `models/cnn_uci.keras` (download it from Drive); without it, a dummy model that always says Standing keeps the app runnable.
+
+**Smoothing** (sidebar toggle, on by default): a majority vote over 5 windows (`smooth_window` in `config.yaml`) removes one-window flickers such as walk, sit, walk.
 
 ![Story tab](reports/figures/app_story.png)
 ![Details tab](reports/figures/app_details.png)
 
 <img src="reports/figures/app_mobile.png" alt="Mobile layout" width="240">
+
+**Live page:** classifies a phone's sensors as they stream over Wi-Fi from the Phyphox app, updating once a second. A replay mode plays `data/sample_synthetic.csv` in real time for demos without a phone. Setup: [docs/live_demo.md](docs/live_demo.md). The phone path is not yet tested on a real phone.
 
 ## Results
 
@@ -38,11 +42,13 @@ All runs: [reports/results.md](reports/results.md).
 
 ![CNN learning curves](reports/figures/learning_curves.png)
 
-**Confusion matrices** (UCI test set). Sitting vs standing is the hardest pair for both models.
+**LSTM comparison:** same split and early stopping as the CNN (best epoch 5 of 10). It trails the CNN by 4.5 points, mostly on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model.
 
-| Random Forest | 1D-CNN |
-|---|---|
-| ![Random Forest confusion matrix](reports/figures/rf_confusion.png) | ![CNN confusion matrix](reports/figures/cnn_confusion.png) |
+**Confusion matrices** (UCI test set). Sitting vs standing is the hardest pair for every model.
+
+| Random Forest | 1D-CNN | LSTM |
+|---|---|---|
+| ![Random Forest confusion matrix](reports/figures/rf_confusion.png) | ![CNN confusion matrix](reports/figures/cnn_confusion.png) | ![LSTM confusion matrix](reports/figures/lstm_confusion.png) |
 
 **The data**
 
