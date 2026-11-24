@@ -28,3 +28,19 @@ def predict_csv(path, model, cfg) -> pd.DataFrame:
     return pd.DataFrame({"start_time": df["timestamp"].min() + np.arange(len(X)) * step,
                          "activity": [ACTS[i] for i in p.argmax(1)],
                          "confidence": p.max(1).round(3)})
+
+
+def smooth(pred_df, k=5) -> pd.DataFrame:
+    """Centered rolling majority vote over `activity` (odd k, edges use a shorter window).
+
+    Ties keep the original label if it is among the leaders. Returns a copy.
+    """
+    assert k % 2 == 1, "k must be odd"
+    out, acts, h = pred_df.copy(), list(pred_df["activity"]), k // 2
+    for i, orig in enumerate(acts):
+        win = acts[max(0, i - h): i + h + 1]
+        counts = {a: win.count(a) for a in set(win)}
+        top = max(counts.values())
+        if counts[orig] < top:
+            out.iloc[i, out.columns.get_loc("activity")] = next(a for a in win if counts[a] == top)
+    return out

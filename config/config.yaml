@@ -11,3 +11,4 @@ split:
   own_test: [p4, p5]
 seed: 42
 norm_stats: config/norm_stats.npz   # train-only per-channel mean/std
+smooth_window: 5       # majority-vote smoothing window (odd, in windows)
