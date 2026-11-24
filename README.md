@@ -57,7 +57,7 @@ All runs: [reports/results.md](reports/results.md).
 
 ## Runs on a phone
 
-The CNN converts to TFLite with `src/export.py`: **410 KB** with 8-bit weights (4x smaller than float32's 1.6 MB), **same accuracy** (92.2-92.3%), and about 0.1-0.25 ms per 2.56 s window on a PC CPU, so a phone has a huge margin. Full int8 is fastest (0.12 ms). Details: [reports/results.md](reports/results.md). `.tflite` files are not in git (build them with `notebooks/06_tflite.ipynb`).
+The CNN converts to TFLite with `src/export.py`: **410 KB** with 8-bit weights (4x smaller than float32's 1.6 MB), **same accuracy** (91.0-91.1%), and about 0.05-0.14 ms per 2.56 s window on a PC CPU, so a phone has a huge margin. Full int8 is fastest (0.045 ms). Details: [reports/results.md](reports/results.md). `.tflite` files are not in git (build them with `notebooks/06_tflite.ipynb`).
 
 ## Team
 

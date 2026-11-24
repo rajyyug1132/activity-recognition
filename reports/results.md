@@ -20,9 +20,9 @@ One row per experiment.
 
 | Model | Size (KB) | Accuracy | Macro F1 | ms/window |
 |---|---|---|---|---|
-| Keras (reference, incl. optimizer state) | 4820 | 0.922 | 0.922 | - |
-| TFLite float32 | 1601 | 0.922 | 0.922 | 0.658 |
-| TFLite dynamic-range | 410 | 0.922 | 0.922 | 0.250 |
-| TFLite full int8 | 411 | 0.923 | 0.924 | 0.123 |
+| Keras (reference, incl. optimizer state) | 4820 | 0.910 | 0.909 | - |
+| TFLite float32 | 1601 | 0.910 | 0.909 | 0.141 |
+| TFLite dynamic-range | 410 | 0.910 | 0.909 | 0.051 |
+| TFLite full int8 | 411 | 0.911 | 0.910 | 0.045 |
 
-Notebook `06_tflite.ipynb`. Latency = mean per window, batch 1, 1 thread, TFLite interpreter on a Windows PC CPU (not a phone). Int8 calibrated on 200 random train windows. The Keras file re-scores 0.922 here vs 0.926 in the CNN row above; the TFLite models match this re-score, so quantization costs nothing.
+Notebook `06_tflite.ipynb`, run on the retrained `cnn_uci.keras` (saved 2026-11-24 23:46). Latency = mean per window, batch 1, 1 thread, TFLite interpreter on a Windows PC CPU (not a phone); it varies with machine load. Int8 calibrated on 200 random train windows. TFLite matches the Keras scores, so quantization costs nothing. Training is not bit-reproducible (same seed gave 0.919 vs 0.934 on two runs), so the Keras row can differ from other CNN rows.
