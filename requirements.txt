@@ -8,3 +8,5 @@ streamlit
 pyyaml
 joblib
 jupyter
+mediapipe
+opencv-python

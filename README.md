@@ -73,6 +73,28 @@ The separate-input variant's small gain comes from other classes and is within s
 
 The CNN converts to TFLite with `src/export.py`: **410 KB** with 8-bit weights (4x smaller than float32's 1.6 MB), **same accuracy** (91.0-91.1%), and about 0.05-0.14 ms per 2.56 s window on a PC CPU, so a phone has a huge margin. Full int8 is fastest (0.045 ms). Details: [reports/results.md](reports/results.md). `.tflite` files are not in git (build them with `notebooks/06_tflite.ipynb`).
 
+## Camera pipeline (experimental)
+
+Our own recordings are phone **videos** of 5 people (p1-p5) walking, standing and using stairs, with no sensor data, so they cannot train the phone model. Instead a second pipeline reads the video: `src/video_pose.py` extracts 33 body landmarks per frame with MediaPipe Pose, normalises them (centred on the hips, scaled by torso length), cuts 2 s windows, and a model classifies each window. Videos are not in git (`*.mp4` is ignored); keypoints and labels live in `data/video/`.
+
+Classes: **walking, standing, stairs** (up and down merged, because the direction cannot be told from side views). No sitting or lying clips exist, so these scores **cannot be compared** with the phone model's 6-class numbers. 493 windows in total; 1 clip left out (a crouch/jump). p5 has a single walking clip, so p5 is used for training only and never as the held-out person.
+
+Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other four, 4 times). Guessing scores about 0.33.
+
+| Model | Accuracy | Macro F1 |
+|---|---|---|
+| 1D-CNN, raw keypoints (`07_video.ipynb`) | 0.46 ± 0.15 | 0.41 ± 0.07 |
+| Random Forest, raw keypoints | 0.59 ± 0.16 | 0.59 ± 0.15 |
+| Random Forest, 23 hand-built features (`08_video_features.ipynb`) | 0.62 ± 0.15 | 0.63 ± 0.11 |
+| Logistic regression, same features | 0.62 ± 0.17 | 0.61 ± 0.15 |
+
+**Read this as a first result, not a finished model.** The CNN overfits (training accuracy 90%, validation about 65%) because 5 people filmed from different angles and places is too little data to learn from. Hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.04, which is more than any real effect we can measure here, so the features cannot be tuned yet. More people, and the same camera angle for everyone, would help most. Per-person scores range from 0.51 (p2) to 0.76 (p1).
+
+**Video page** (`app/pages/2_Video.py`): upload a phone video of one person and get a walking / standing / stairs timeline next to the video. It uses the Random Forest on hand-built features, trained on all 5 people (`models/video_rf.joblib`, made by notebook 08, not in git). The page also needs the MediaPipe pose model at `models/pose_landmarker_full.task` ([download](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task)). Processing takes about as long as the video.
+
+![Camera model confusion matrices](reports/figures/video_confusion.png)
+![Hand-built features](reports/figures/video_features.png)
+
 ## Team
 
 | Owner | Files |

@@ -238,3 +238,5 @@ models/
 *.zip
 .env
 *.tflite
+*.mp4
+*.mov

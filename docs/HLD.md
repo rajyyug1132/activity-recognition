@@ -19,7 +19,8 @@ Team: Yyug (lead), Nihal, Shravya, Yash, Yashaswini (names and USNs on the title
 
 ## 2. Scope
 - In: phone worn at the waist, recordings exported as CSV and uploaded to a web app.
-- Out (for now): live streaming from the phone, other placements, other activities.
+- Also in: a camera pipeline for our own recordings, which are videos (see sections 4 and 6).
+- Out (for now): other placements, other activities.
 
 ## 3. System architecture
 
@@ -43,6 +44,16 @@ flowchart LR
 
 UCI HAR is already windowed, so it goes straight to training. Our recordings and every uploaded CSV pass validation and preprocessing first, so the model always gets the same 9-channel, 128-sample windows.
 
+**Camera pipeline.** Our own recordings turned out to be phone videos of 5 people, with no sensor data, so they cannot fine-tune the phone model. A second path reads video instead:
+
+```mermaid
+flowchart LR
+  Vd[Phone video] --> K[video_pose.extract_keypoints<br/>MediaPipe Pose, 33 landmarks, 25 fps]
+  K --> Nm[normalize_pose<br/>hip-centred, torso-scaled]
+  Nm --> Wn[2 s windows] --> Ft[pose_features<br/>23 hand-built]
+  Ft --> RF[Random Forest] --> Pg[Video page<br/>timeline]
+```
+
 ## 4. Components
 <!-- Each owner replaces their draft paragraph (150 words max) by Thu night. -->
 - **Upload interface (Yashaswini):** Streamlit page with a CSV uploader and a sidebar for window length and overlap, defaulting to `config.yaml`.
@@ -52,13 +63,14 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 - **Training and evaluation (Yash):** validation on 3 held-out training subjects, early stopping on validation loss; reports accuracy, macro F1, F1 per activity, confusion matrix and learning curves.
 - **Inference (Yashaswini):** `predict_csv` returns one row per window: start time, activity, confidence.
 - **App (Yashaswini):** mobile-first Streamlit app with Story and Details tabs; shows the validation report, an activity timeline, counts per activity and a predictions CSV download.
+- **Camera pipeline (Yyug, taken over from Yashaswini):** `src/video_pose.py` extracts MediaPipe Pose keypoints, normalises them, cuts 2 s windows and computes 23 hand-built features (speed and regularity of the leg swing, knee angle, body motion). `predict_video` returns one row per window; the app's Video page shows the timeline.
 - **Fine-tuning (Yash):** `train.fine_tune` clones the UCI-trained model, freezes all but the last 2 layers and trains with Adam 1e-4 on our recordings (`data_loader.load_own`).
 
 ## 5. Data design
 | Dataset | People | Split | Format | Storage |
 |---|---|---|---|---|
 | UCI HAR | 30 | 21 train (3 of them validation: 3, 22, 25) / 9 test, by person | 9 inertial signal files + 561 features | Drive `HAR-data/uci/` |
-| Own recordings | 5 (p1–p5) | p1–p3 train / p4–p5 test | CSV `timestamp, acc_x..z (g), gyro_x..z (rad/s)`, file `p1_walking_01.csv` | Drive `HAR-data/own/raw/`, `own/processed/` |
+| Own videos | 5 (p1–p5) | leave-one-person-out over p1–p4; p5 (one walking clip) training only | 36 phone videos → keypoints `.npz`, file `p1_walking_01.npz`; labels in `data/video/labels.csv` | Videos and keypoints local / Drive, never in git |
 
 ## 6. Model design
 1. Random Forest baseline on UCI features.
@@ -66,6 +78,8 @@ UCI HAR is already windowed, so it goes straight to training. Our recordings and
 3. Pre-train on UCI, then fine-tune on our data: freeze all but the last two layers, Adam(1e-4), train on p1–p3, test on p4–p5. Compare: UCI model unchanged, fine-tuned, and trained only on our data.
 
 Results so far (UCI test set): RF 92.9% accuracy, 0.927 macro F1; 1D-CNN 91.0%, 0.909 (retrained 24 Nov, best epoch 2 of 7, early stopping; 91.3% ± 0.4 over 3 seeds). LSTM 88.1%, 0.875 (best epoch 5 of 10): below the CNN, weakest on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model. Sitting vs standing: gravity-angle features did not reduce the ~160 sit/stand errors (a waist phone barely tilts between the two); merged into one "stationary" class the CNN reaches 96.8%. On-device: TFLite int8 is 411 KB with no accuracy loss, 0.05 ms per window on a PC CPU. All runs: `reports/results.md`.
+
+4. Camera model on our own videos (notebooks 07, 08): 3 classes (walking, standing, stairs; no sitting or lying clips were filmed, and up and down stairs cannot be told apart from side views). Leave-one-person-out macro F1: 1D-CNN on raw keypoints 0.41 (overfits: 90% train, about 65% validation); Random Forest on raw keypoints 0.59; **Random Forest on 23 hand-built features 0.63 ± 0.11** (chosen for the app). Guessing scores 0.33. These numbers are not comparable with the 6-class phone results. Fine-tuning the phone model (item 3) was not possible, because no sensor recordings were made.
 
 ## 7. Data flow
 CSV upload → validate → resample to 50 Hz → filter → gravity split → 128-sample windows → normalise → model → activity per window → timeline in the app.
@@ -81,7 +95,7 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 ## 10. Risks and mitigation
 | Risk | Fallback |
 |---|---|
-| Our recordings are late or messy | Show the protocol and one validated file; fine-tuning moves to Review 3 |
+| Our recordings are late or messy | Happened: only videos were recorded. Built a camera pipeline on them instead; the phone model stays UCI-only |
 | CNN stays under 90% | Lead with the Random Forest result; tune the CNN after the review |
 | Phone axes or units don't match UCI | Convert to g, compare the gravity axis while standing, swap axes |
 | Colab resets and work is lost | Save models, plots and logs to Drive after every run |
@@ -89,4 +103,6 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 
 ## 11. Progress and plan to Review 3
 - Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (91.0%) with learning curves, LSTM comparison (88.1%), fine-tuning code ready (notebook 04), app redesign (Story/Details tabs), prediction smoothing, live Phyphox page (replay-tested), sit/stand study (notebook 05), TFLite export (notebook 06).
-- Next: record all 5 people, fine-tune on our data, 90%+ on p4–p5, final report.
+- Done since: camera pipeline on our own videos (MediaPipe keypoints, hand-built features, Random Forest 0.63 macro F1 leave-one-person-out) and the app's Video page.
+- Limits: no own sensor data, so no fine-tuning and no p4–p5 phone result; the camera model is data-limited (5 people, mixed camera angles).
+- Next: final report and presentation.
