@@ -77,7 +77,7 @@ Our own recordings are phone **videos** of 5 people with no sensor data. A separ
 
 **How to read this.**
 - These are 3-class results and cannot be compared with the 6-class phone results.
-- Random guessing gives a macro F1 of about 0.33. Always predicting the most common class (standing) gives an accuracy of 0.39 (192 of 493 windows), so the raw-keypoint CNN's 0.456 is only slightly above that.
+- Random guessing gives a macro F1 of about 0.33. Always predicting the most common class (standing) gives an accuracy of 0.39 (192 of 493 windows) but a macro F1 of only 0.18, so the raw-keypoint CNN's 0.456 accuracy is only slightly above that, and macro F1 is the number to trust.
 - Scores differ a lot between people. For the chosen Random Forest, macro F1 is 0.76 on p1, 0.51 on p2, 0.56 on p3 and 0.68 on p4.
 - The CNN overfits: training accuracy reaches about 90% while validation accuracy on the held-out person is far lower and swings between folds. Five people filmed from different angles and places is too little data for a neural network.
 - The hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.04, which is more than any real effect we can measure with 4 test people, so the features cannot be tuned yet.
