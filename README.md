@@ -73,6 +73,26 @@ The separate-input variant's small gain comes from other classes and is within s
 
 The CNN converts to TFLite with `src/export.py`: **410 KB** with 8-bit weights (4x smaller than float32's 1.6 MB), **same accuracy** (91.0-91.1%), and about 0.05-0.14 ms per 2.56 s window on a PC CPU, so a phone has a huge margin. Full int8 is fastest (0.045 ms). Details: [reports/results.md](reports/results.md). `.tflite` files are not in git (build them with `notebooks/06_tflite.ipynb`).
 
+## Camera pipeline (experimental)
+
+Our own recordings are phone **videos** of 4 people (p1-p4) walking, standing and using stairs, with no sensor data, so they cannot train the phone model. Instead a second pipeline reads the video: `src/video_pose.py` extracts 33 body landmarks per frame with MediaPipe Pose, normalises them (centred on the hips, scaled by torso length), cuts 2 s windows, and a model classifies each window. Videos are not in git (`*.mp4` is ignored); keypoints and labels live in `data/video/`.
+
+Classes: **walking, standing, stairs** (up and down merged, because the direction cannot be told from side views). No sitting or lying clips exist, so these scores **cannot be compared** with the phone model's 6-class numbers. 473 windows in total; 2 clips left out (one with a crouch/jump, one whose person is unconfirmed).
+
+Evaluation is leave-one-person-out (train on 3 people, test on the 4th, 4 times). Guessing scores about 0.33.
+
+| Model | Accuracy | Macro F1 |
+|---|---|---|
+| 1D-CNN, raw keypoints (`07_video.ipynb`) | 0.41 ± 0.15 | 0.36 ± 0.08 |
+| Random Forest, raw keypoints | 0.62 ± 0.18 | 0.63 ± 0.17 |
+| Random Forest, 23 hand-built features (`08_video_features.ipynb`) | 0.63 ± 0.14 | 0.63 ± 0.11 |
+| Logistic regression, same features | 0.62 ± 0.17 | 0.61 ± 0.16 |
+
+**Read this as a first result, not a finished model.** The CNN overfits (training accuracy 90%, validation about 65%) because 4 people filmed from different angles and places is too little data to learn from. Hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.06, which is more than any real effect we can measure here, so the features cannot be tuned yet. More people, and the same camera angle for everyone, would help most. Per-person scores range from 0.52 (p2) to 0.77 (p1).
+
+![Camera model confusion matrices](reports/figures/video_confusion.png)
+![Hand-built features](reports/figures/video_features.png)
+
 ## Team
 
 | Owner | Files |

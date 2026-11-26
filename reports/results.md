@@ -27,3 +27,19 @@ One row per experiment.
 | TFLite full int8 | 411 | 0.911 | 0.910 | 0.045 |
 
 Notebook `06_tflite.ipynb`, run on the retrained `cnn_uci.keras` (saved 2026-11-24 23:46). Latency = mean per window, batch 1, 1 thread, TFLite interpreter on a Windows PC CPU (not a phone); it varies with machine load. Int8 calibrated on 200 random train windows. TFLite matches the Keras scores, so quantization costs nothing. Training is not bit-reproducible (same seed gave 0.919 vs 0.934 on two runs), so the Keras row can differ from other CNN rows.
+
+## Camera pipeline (own videos, 3 classes: walking, standing, stairs)
+
+Leave-one-person-out over p1-p4 (473 windows of 2 s). Not comparable with the 6-class phone results above; guessing scores about 0.33. Notebooks `07_video.ipynb`, `08_video_features.ipynb`.
+
+| Date | Model | Input | Accuracy | Macro F1 | Ran by |
+|---|---|---|---|---|---|
+| 2026-11-26 | 1D-CNN | raw keypoints x,y (mirror augmentation) | 0.412 ± 0.153 | 0.364 ± 0.077 | Yyug |
+| 2026-11-26 | 1D-CNN | raw keypoints, height (y) only | 0.415 ± 0.149 | 0.373 ± 0.091 | Yyug |
+| 2026-11-26 | Random Forest | raw keypoints x,y, window mean/std/min/max | 0.619 ± 0.183 | 0.630 ± 0.171 | Yyug |
+| 2026-11-26 | Random Forest | raw keypoints, height (y) only | 0.508 ± 0.089 | 0.516 ± 0.104 | Yyug |
+| 2026-11-26 | Random Forest | 23 hand-built features | 0.630 ± 0.143 | 0.634 ± 0.108 | Yyug |
+| 2026-11-26 | Logistic regression | 23 hand-built features | 0.617 ± 0.174 | 0.609 ± 0.157 | Yyug |
+
+± is the standard deviation over the 4 held-out people. Ablation on the hand-built features (Random Forest, macro F1): all 23 = 0.634, without `torso_tilt` = 0.570, without `torso_tilt` and `knee_y_mean` = 0.650. These differences are within noise at 4 people. The 120 fps clips (A (4), B (8), C (7)) were checked: walking cadence 0.63-0.74 Hz, same as 30 fps clips (0.66-0.85 Hz), so they are not slow motion and are kept.
+

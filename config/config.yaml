@@ -12,3 +12,10 @@ split:
 seed: 42
 norm_stats: config/norm_stats.npz   # train-only per-channel mean/std
 smooth_window: 5       # majority-vote smoothing window (odd, in windows)
+video:                   # camera pipeline (src/video_pose.py)
+  fps: 25
+  window_frames: 50      # 2 s at 25 fps
+  overlap: 0.5
+  max_gap: 5             # NaN gaps up to this many frames are interpolated
+  pose_model: models/pose_landmarker_full.task   # MediaPipe .task file (gitignored)
+  classes: [walking, standing, stairs]   # camera model: no sitting/lying clips, up/down stairs merged
