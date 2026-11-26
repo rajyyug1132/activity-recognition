@@ -90,6 +90,8 @@ Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other f
 
 **Read this as a first result, not a finished model.** The CNN overfits (training accuracy 90%, validation about 65%) because 5 people filmed from different angles and places is too little data to learn from. Hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.04, which is more than any real effect we can measure here, so the features cannot be tuned yet. More people, and the same camera angle for everyone, would help most. Per-person scores range from 0.51 (p2) to 0.76 (p1).
 
+**Video page** (`app/pages/2_Video.py`): upload a phone video of one person and get a walking / standing / stairs timeline next to the video. It uses the Random Forest on hand-built features, trained on all 5 people (`models/video_rf.joblib`, made by notebook 08, not in git). The page also needs the MediaPipe pose model at `models/pose_landmarker_full.task` ([download](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task)). Processing takes about as long as the video.
+
 ![Camera model confusion matrices](reports/figures/video_confusion.png)
 ![Hand-built features](reports/figures/video_features.png)
 

@@ -185,3 +185,22 @@ def pose_features(window, fps=25) -> np.ndarray:
 def feature_windows(X, fps=25) -> np.ndarray:
     """[N, frames, 66] -> [N, len(FEATURE_NAMES)]."""
     return np.stack([pose_features(w, fps) for w in X])
+
+
+MODEL = os.path.join(ROOT, "models", "video_rf.joblib")
+
+
+def predict_video(video_path, bundle, cfg) -> "pd.DataFrame":
+    """One row per 2 s window: start_time (s), activity, confidence. `bundle` = joblib dict from notebook 08."""
+    import pandas as pd
+    v = cfg["video"]
+    kp = normalize_pose(extract_keypoints(video_path, v["fps"]), v["max_gap"])
+    flat = kp.reshape(len(kp), -1)
+    win, step = v["window_frames"], max(1, int(v["window_frames"] * (1 - v["overlap"])))
+    starts = [s for s in range(0, len(flat) - win + 1, step) if not np.isnan(flat[s:s + win]).any()]
+    if not starts:
+        return pd.DataFrame(columns=["start_time", "activity", "confidence"])
+    p = bundle["model"].predict_proba(feature_windows(np.stack([flat[s:s + win] for s in starts]), v["fps"]))
+    return pd.DataFrame({"start_time": np.array(starts) / v["fps"],
+                         "activity": [bundle["classes"][i] for i in p.argmax(1)],
+                         "confidence": p.max(1).round(3)})
