@@ -64,7 +64,7 @@ flowchart LR
 - **Inference (Yashaswini):** `predict_csv` returns one row per window: start time, activity, confidence.
 - **App (Yashaswini):** mobile-first Streamlit app with Story and Details tabs; shows the validation report, an activity timeline, counts per activity and a predictions CSV download.
 - **Camera pipeline (Yyug, taken over from Yashaswini):** `src/video_pose.py` extracts MediaPipe Pose keypoints, normalises them, cuts 2 s windows and computes 23 hand-built features (speed and regularity of the leg swing, knee angle, body motion). `predict_video` returns one row per window; the app's Video page shows the timeline.
-- **Fine-tuning (Yash):** `train.fine_tune` clones the UCI-trained model, freezes all but the last 2 layers and trains with Adam 1e-4 on our recordings (`data_loader.load_own`).
+- **Fine-tuning (Yash, built but never run: no sensor data):** `train.fine_tune` clones the UCI-trained model, freezes all but the last 2 layers and trains with Adam 1e-4 on our recordings (`data_loader.load_own`).
 
 ## 5. Data design
 | Dataset | People | Split | Format | Storage |
@@ -75,11 +75,11 @@ flowchart LR
 ## 6. Model design
 1. Random Forest baseline on UCI features.
 2. 1D-CNN on raw UCI windows; LSTM (2x64) as a comparison.
-3. Pre-train on UCI, then fine-tune on our data: freeze all but the last two layers, Adam(1e-4), train on p1–p3, test on p4–p5. Compare: UCI model unchanged, fine-tuned, and trained only on our data.
+3. Fine-tuning on our own phone data: **not done, a limitation.** The plan was to pre-train on UCI, freeze all but the last two layers, fine-tune with Adam(1e-4) on p1–p3 and test on p4–p5. The code exists (`train.fine_tune`, notebook 04) but never ran, because the team recorded only videos, with no phone sensor data. So objective 5 and the p4–p5 success measure were not met; the phone model is UCI-only.
 
 Results so far (UCI test set): RF 92.9% accuracy, 0.927 macro F1; 1D-CNN 91.0%, 0.909 (retrained 24 Nov, best epoch 2 of 7, early stopping; 91.3% ± 0.4 over 3 seeds). LSTM 88.1%, 0.875 (best epoch 5 of 10): below the CNN, weakest on sitting (F1 0.62) and standing (0.79), so the CNN stays the main model. Sitting vs standing: gravity-angle features did not reduce the ~160 sit/stand errors (a waist phone barely tilts between the two); merged into one "stationary" class the CNN reaches 96.8%. On-device: TFLite int8 is 411 KB with no accuracy loss, 0.05 ms per window on a PC CPU. All runs: `reports/results.md`.
 
-4. Camera model on our own videos (notebooks 07, 08): 3 classes (walking, standing, stairs; no sitting or lying clips were filmed, and up and down stairs cannot be told apart from side views). Leave-one-person-out macro F1: 1D-CNN on raw keypoints 0.41 (overfits: 90% train, about 65% validation); Random Forest on raw keypoints 0.59; **Random Forest on 23 hand-built features 0.63 ± 0.11** (chosen for the app). Guessing scores 0.33. These numbers are not comparable with the 6-class phone results. Fine-tuning the phone model (item 3) was not possible, because no sensor recordings were made.
+4. Camera model on our own videos (notebooks 07, 08): 3 classes (walking, standing, stairs; no sitting or lying clips were filmed, and up and down stairs cannot be told apart from side views). Leave-one-person-out macro F1: 1D-CNN on raw keypoints 0.41 (overfits: 90% train, about 65% validation); Random Forest on raw keypoints 0.59; **Random Forest on 23 hand-built features 0.63 ± 0.11** (chosen for the app). Baselines: random guessing about 0.33 macro F1; always answering "standing" 0.39 accuracy, 0.18 macro F1. These numbers are not comparable with the 6-class phone results. Caveats: 0.63 is slightly optimistic, because the features, model settings and CNN input were chosen while looking at the same 4 test people; the app's model (trained on all 5 people) has no held-out score of its own. Fine-tuning the phone model (item 3) was not possible, because no sensor recordings were made.
 
 ## 7. Data flow
 CSV upload → validate → resample to 50 Hz → filter → gravity split → 128-sample windows → normalise → model → activity per window → timeline in the app.
@@ -102,7 +102,7 @@ Python, NumPy, pandas, SciPy, scikit-learn, Keras (TensorFlow), Streamlit, GitHu
 | Someone can't push to GitHub | Send files to Yyug to commit |
 
 ## 11. Progress and plan to Review 3
-- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (91.0%) with learning curves, LSTM comparison (88.1%), fine-tuning code ready (notebook 04), app redesign (Story/Details tabs), prediction smoothing, live Phyphox page (replay-tested), sit/stand study (notebook 05), TFLite export (notebook 06).
+- Done: repo and contracts, UCI loader and EDA, preprocessing, validation, RF baseline (92.9%), 1D-CNN (91.0%) with learning curves, LSTM comparison (88.1%), fine-tuning code (notebook 04; never run, see Limits), app redesign (Story/Details tabs), prediction smoothing, live Phyphox page (replay-tested), sit/stand study (notebook 05), TFLite export (notebook 06).
 - Done since: camera pipeline on our own videos (MediaPipe keypoints, hand-built features, Random Forest 0.63 macro F1 leave-one-person-out) and the app's Video page.
 - Limits: no own sensor data, so no fine-tuning and no p4–p5 phone result; the camera model is data-limited (5 people, mixed camera angles).
 - Next: final report and presentation.

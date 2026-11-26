@@ -1,6 +1,6 @@
 # Activity Recognition
 
-Recognises six activities (walking, walking upstairs, walking downstairs, sitting, standing, lying) from a waist-worn phone's accelerometer and gyroscope. Trained on [UCI HAR](https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones), to be fine-tuned on our own recordings.
+Recognises six activities (walking, walking upstairs, walking downstairs, sitting, standing, lying) from a waist-worn phone's accelerometer and gyroscope. Trained on [UCI HAR](https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones). Fine-tuning on our own phone recordings was built (notebook 04) but never run, because the team recorded videos only, with no phone sensor data. That is a limitation of this project; our videos feed a separate camera pipeline instead (see below).
 
 ## Setup
 
@@ -79,7 +79,7 @@ Our own recordings are phone **videos** of 5 people (p1-p5) walking, standing an
 
 Classes: **walking, standing, stairs** (up and down merged, because the direction cannot be told from side views). No sitting or lying clips exist, so these scores **cannot be compared** with the phone model's 6-class numbers. 493 windows in total; 1 clip left out (a crouch/jump). p5 has a single walking clip, so p5 is used for training only and never as the held-out person.
 
-Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other four, 4 times). Guessing scores about 0.33.
+Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other four, 4 times). Two baselines: random guessing scores about 0.33 macro F1; always answering "standing" (the largest class) scores 0.39 accuracy but only 0.18 macro F1. Accuracy alone flatters weak models here, so macro F1 is the main number.
 
 | Model | Accuracy | Macro F1 |
 |---|---|---|
@@ -89,6 +89,11 @@ Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other f
 | Logistic regression, same features | 0.62 ± 0.17 | 0.61 ± 0.15 |
 
 **Read this as a first result, not a finished model.** The CNN overfits (training accuracy 90%, validation about 65%) because 5 people filmed from different angles and places is too little data to learn from. Hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.04, which is more than any real effect we can measure here, so the features cannot be tuned yet. More people, and the same camera angle for everyone, would help most. Per-person scores range from 0.51 (p2) to 0.76 (p1).
+
+**Caveats.**
+- **0.63 is slightly optimistic.** The 23 features, the Random Forest and logistic-regression settings, and the choice of CNN input were all chosen while looking at the same 4 test people. With no separate test set, there was no way to avoid this.
+- **The app's model has no held-out score of its own.** It is trained on all 5 people, so 0.63 is the leave-one-person-out estimate for the same recipe, not a test of that exact model.
+- **Don't quote the saved CNN's validation accuracy.** `models/video_cnn.keras` (notebook 07, not used by the app) was early-stopped on a random 15% of windows. Windows overlap by 50%, so that validation set shares frames with training, and its 0.87 validation accuracy is inflated.
 
 **Video page** (`app/pages/2_Video.py`): upload a phone video of one person and get a walking / standing / stairs timeline next to the video. It uses the Random Forest on hand-built features, trained on all 5 people (`models/video_rf.joblib`, made by notebook 08, not in git). The page also needs the MediaPipe pose model at `models/pose_landmarker_full.task` ([download](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task)). Processing takes about as long as the video.
 
