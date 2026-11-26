@@ -30,16 +30,15 @@ Notebook `06_tflite.ipynb`, run on the retrained `cnn_uci.keras` (saved 2026-11-
 
 ## Camera pipeline (own videos, 3 classes: walking, standing, stairs)
 
-Leave-one-person-out over p1-p4 (473 windows of 2 s). Not comparable with the 6-class phone results above; guessing scores about 0.33. Notebooks `07_video.ipynb`, `08_video_features.ipynb`.
+Leave-one-person-out over p1-p4 (493 windows of 2 s in total). p5 has one walking clip, so p5 is training-only and never a test or validation person. Not comparable with the 6-class phone results above; guessing scores about 0.33. Notebooks `07_video.ipynb`, `08_video_features.ipynb`.
 
 | Date | Model | Input | Accuracy | Macro F1 | Ran by |
 |---|---|---|---|---|---|
-| 2026-11-26 | 1D-CNN | raw keypoints x,y (mirror augmentation) | 0.412 ± 0.153 | 0.364 ± 0.077 | Yyug |
-| 2026-11-26 | 1D-CNN | raw keypoints, height (y) only | 0.415 ± 0.149 | 0.373 ± 0.091 | Yyug |
-| 2026-11-26 | Random Forest | raw keypoints x,y, window mean/std/min/max | 0.619 ± 0.183 | 0.630 ± 0.171 | Yyug |
-| 2026-11-26 | Random Forest | raw keypoints, height (y) only | 0.508 ± 0.089 | 0.516 ± 0.104 | Yyug |
-| 2026-11-26 | Random Forest | 23 hand-built features | 0.630 ± 0.143 | 0.634 ± 0.108 | Yyug |
-| 2026-11-26 | Logistic regression | 23 hand-built features | 0.617 ± 0.174 | 0.609 ± 0.157 | Yyug |
+| 2026-11-26 | 1D-CNN | raw keypoints x,y (mirror augmentation) | 0.456 ± 0.150 | 0.407 ± 0.071 | Yyug |
+| 2026-11-26 | 1D-CNN | raw keypoints, height (y) only | 0.373 ± 0.094 | 0.340 ± 0.104 | Yyug |
+| 2026-11-26 | Random Forest | raw keypoints x,y, window mean/std/min/max | 0.586 ± 0.159 | 0.589 ± 0.151 | Yyug |
+| 2026-11-26 | Random Forest | raw keypoints, height (y) only | 0.459 ± 0.051 | 0.472 ± 0.085 | Yyug |
+| 2026-11-26 | Random Forest | 23 hand-built features | 0.621 ± 0.150 | 0.627 ± 0.112 | Yyug |
+| 2026-11-26 | Logistic regression | 23 hand-built features | 0.615 ± 0.170 | 0.609 ± 0.150 | Yyug |
 
-± is the standard deviation over the 4 held-out people. Ablation on the hand-built features (Random Forest, macro F1): all 23 = 0.634, without `torso_tilt` = 0.570, without `torso_tilt` and `knee_y_mean` = 0.650. These differences are within noise at 4 people. The 120 fps clips (A (4), B (8), C (7)) were checked: walking cadence 0.63-0.74 Hz, same as 30 fps clips (0.66-0.85 Hz), so they are not slow motion and are kept.
-
+± is the standard deviation over the 4 held-out people. Ablation on the hand-built features (Random Forest, macro F1): all 23 = 0.627, without `torso_tilt` = 0.585, without `torso_tilt` and `knee_y_mean` = 0.660. These differences are within noise at 4 test people. The 120 fps clips (A (4), B (8), C (7)) were checked: walking cadence 0.63-0.74 Hz, same as 30 fps clips (0.66-0.85 Hz), so they are not slow motion and are kept. The first run (before p5's clip was added) gave the same picture: CNN 0.36, raw RF 0.63, features RF 0.63.
