@@ -24,6 +24,7 @@ from validation import validate_csv
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from components.ui import (
     activity_hero,
+    activity_card,
     empty_state,
     footer,
     load_css,
@@ -107,6 +108,22 @@ st.sidebar.caption(
     "On: short bursts are merged into the dominant activity. "
     "Off: raw prediction per window."
 )
+cfg["window_samples"] = st.sidebar.slider(
+    "Window length (samples)",
+    min_value=32,
+    max_value=512,
+    value=int(cfg["window_samples"]),
+    step=32,
+)
+step_fraction = st.sidebar.slider(
+    "Step size (fraction of window)",
+    min_value=0.1,
+    max_value=1.0,
+    value=float(1 - cfg["overlap"]),
+    step=0.05,
+    help="Smaller steps create more overlap between windows.",
+)
+cfg["overlap"] = 1 - step_fraction
 
 # ---------------------------------------------------------------------------
 # File uploader (above tabs so it persists across both)
@@ -116,17 +133,11 @@ story, details = st.tabs(["Story", "Details"])
 
 # Details controls (must render even with no file so layout doesn't jump)
 with details:
-    c1, c2 = st.columns(2)
-    cfg["window_samples"] = c1.number_input(
-        "Window length (samples)", 32, 512, cfg["window_samples"], 32
-    )
-    cfg["overlap"] = c2.slider(
-        "Overlap", 0.0, 0.9, float(cfg["overlap"]), 0.05
-    )
     if cfg["window_samples"] != 128:
         st.warning(
             "The CNN was trained on 128-sample windows; "
-            "other lengths will predict poorly."
+            "other lengths may reduce prediction quality. Adjust the window "
+            "and step in the sidebar."
         )
 
 # ---------------------------------------------------------------------------
@@ -206,6 +217,11 @@ with story:
         confidence=main_conf,
         duration=f"{mmss(dur)} recording",
         model=model_name,
+    )
+
+    st.markdown(
+        f'<p class="story-copy">{headline_text(share)}</p>',
+        unsafe_allow_html=True,
     )
 
     # Low-confidence warning
@@ -316,6 +332,28 @@ with details:
         x_label="time (s)",
         y_label="confidence",
     )
+
+    section_label("Confidence by Activity")
+    confidence_by_activity = (
+        pred.groupby("activity")["confidence"]
+        .mean()
+        .reindex(ACTS)
+        .dropna()
+        .rename("Mean confidence")
+        .to_frame()
+    )
+    st.bar_chart(confidence_by_activity, color="#D4FF00", y="Mean confidence")
+
+    section_label("Activity Breakdown")
+    breakdown_cols = st.columns(3)
+    for i, act in enumerate(ACTS):
+        count = int(share[act])
+        pct = count / len(pred)
+        with breakdown_cols[i % len(breakdown_cols)]:
+            activity_card(
+                [(STYLE[act][2], mmss(count * step))],
+                sub=f"{pct:.0%} of this recording",
+            )
 
     section_label("Per-Window Predictions")
     st.dataframe(

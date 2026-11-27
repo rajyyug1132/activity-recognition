@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import pathlib
+from textwrap import dedent
 
 import streamlit as st
 
@@ -41,16 +42,8 @@ def load_css() -> None:
 
     Call once at the top of every page script.
     """
-    font_link = (
-        '<link rel="preconnect" href="https://fonts.googleapis.com">'
-        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">'
-    )
-    css_text = _CSS_PATH.read_text(encoding="utf-8") if _CSS_PATH.exists() else ""
-    st.markdown(
-        f"{font_link}<style>{css_text}</style>",
-        unsafe_allow_html=True,
-    )
+    css_text = _CSS_PATH.read_text(encoding="utf-8")
+    st.html(f"<style>\n{css_text}\n</style>")
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +90,12 @@ def activity_hero(
         model:         Model identifier shown as a quiet chip in the corner.
     """
     key = activity_name.upper().replace(" ", "_")
-    color, _, display_name, _ = ACTIVITY_STYLE.get(key, _FALLBACK)
+    style = ACTIVITY_STYLE.get(key)
+    if style is None:
+        color = _FALLBACK[0]
+        display_name = activity_name
+    else:
+        color, _, display_name, _ = style
 
     conf_badge = ""
     if confidence is not None:
@@ -125,14 +123,14 @@ def activity_hero(
 
     escaped_display = html.escape(display_name)
     st.markdown(
-        f"""
+        dedent(f"""
         <div class="activity-hero" style="{act_style}">
             {model_chip}
             <p class="eyebrow">CURRENT ACTIVITY</p>
-            <p class="activity-name">{escaped_display}</p>
+            <h1 class="activity-name">{escaped_display}</h1>
             {sub_line}
         </div>
-        """,
+        """).strip(),
         unsafe_allow_html=True,
     )
 

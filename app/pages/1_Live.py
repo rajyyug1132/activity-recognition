@@ -8,6 +8,7 @@ import html as _html
 import os
 import sys
 import time
+from pathlib import Path
 
 import streamlit as st
 import yaml
@@ -26,7 +27,8 @@ from components.ui import (
     status_chip,
 )
 
-MODEL, SAMPLE = "models/cnn_uci.keras", "data/sample_synthetic.csv"
+MODEL = "models/cnn_uci.keras"
+SAMPLE = Path(__file__).resolve().parents[2] / "data" / "sample_synthetic.csv"
 
 # New colorblind-safe activity palette (bar_color, bar_text, display_name)
 STYLE = {
@@ -100,15 +102,35 @@ ip = st.text_input(
     disabled=ss.live is not None or mode != "Phone (Phyphox)",
 )
 
+sample_available = SAMPLE.is_file()
+if mode == "Replay sample" and not sample_available:
+    st.warning(
+        "Replay is unavailable because data/sample_synthetic.csv is missing. "
+        "Add the replay CSV to the data folder, or choose Phone (Phyphox)."
+    )
+
 c1, c2 = st.columns(2)
 
-if c1.button("Start", type="primary", use_container_width=True, disabled=ss.live is not None):
+if c1.button(
+    "Start",
+    type="primary",
+    use_container_width=True,
+    disabled=ss.live is not None or (mode == "Replay sample" and not sample_available),
+):
     try:
         src = PhyphoxSource(ip) if mode.startswith("Phone") else ReplaySource(SAMPLE)
         src.start()
         ss.live = (src, LiveClassifier(load_model(), cfg))
         ss.history = []
         ss.error = None
+    except FileNotFoundError:
+        if mode == "Replay sample":
+            ss.error = (
+                "The replay sample became unavailable. Add "
+                "data/sample_synthetic.csv to the data folder, or choose Phone (Phyphox)."
+            )
+        else:
+            ss.error = "Could not start: the requested file was not found."
     except Exception as e:
         ss.error = f"Could not start: {e}"
     st.rerun()

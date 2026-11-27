@@ -138,68 +138,79 @@ share = pred["activity"].value_counts()
 main = share.idxmax()
 main_conf = float(pred.loc[pred["activity"] == main, "confidence"].mean())
 
-# ---------------------------------------------------------------------------
-# Hero
-# ---------------------------------------------------------------------------
-activity_hero(
-    activity_name=main.upper().replace("STAIRS", "WALKING_UPSTAIRS"),
-    confidence=main_conf,
-    duration=f"{mmss(dur)} video",
-    model="Random Forest · pose features",
-)
+share = share.reindex(STYLE, fill_value=0)
+video_col, analysis_col = st.columns([1, 1], gap="large")
 
-# ---------------------------------------------------------------------------
-# Timeline
-# ---------------------------------------------------------------------------
-section_label("Activity Timeline")
+with video_col:
+    section_label("Video")
+    st.video(up)
 
-runs_df = pred.groupby(
-    (pred["activity"] != pred["activity"].shift()).cumsum()
-)["activity"].agg(["first", "size"])
-
-bars_parts = []
-legend_seen: set[str] = set()
-legend_parts = []
-for _, row in runs_df.iterrows():
-    act = row["first"]
-    n = int(row["size"])
-    pct = n / len(pred) * 100
-    color, text_color, display_name = STYLE.get(act, ("#9CA3AF", "#000000", act))
-    safe_name = _html.escape(display_name)
-    bars_parts.append(
-        f'<div style="width:{pct:.2f}%;background:{color};height:100%;" '
-        f'title="{safe_name} ({pct:.1f}%)" aria-label="{safe_name} {pct:.1f}%"></div>'
+with analysis_col:
+    activity_hero(
+        activity_name=main.title(),
+        confidence=main_conf,
+        duration=f"{mmss(dur)} video",
+        model="Random Forest · pose features",
     )
-    if act not in legend_seen:
-        legend_seen.add(act)
-        legend_parts.append(
-            f'<span style="display:inline-flex;align-items:center;gap:6px;'
-            f'font-size:.75rem;color:#9CA3AF;font-family:Inter,sans-serif;">'
-            f'<span style="width:10px;height:10px;border-radius:2px;background:{color};display:inline-block;"></span>'
-            f'{safe_name}</span>'
+
+    section_label("Activity Timeline")
+
+    runs_df = pred.groupby(
+        (pred["activity"] != pred["activity"].shift()).cumsum()
+    )["activity"].agg(["first", "size"])
+
+    bars_parts = []
+    legend_seen: set[str] = set()
+    legend_parts = []
+    for _, row in runs_df.iterrows():
+        act = row["first"]
+        n = int(row["size"])
+        pct = n / len(pred) * 100
+        color, _, display_name = STYLE.get(act, ("#9CA3AF", "#000000", act))
+        safe_name = _html.escape(display_name)
+        bars_parts.append(
+            f'<div style="width:{pct:.2f}%;background:{color};height:100%;" '
+            f'title="{safe_name} ({pct:.1f}%)" aria-label="{safe_name} {pct:.1f}%"></div>'
         )
+        if act not in legend_seen:
+            legend_seen.add(act)
+            legend_parts.append(
+                f'<span style="display:inline-flex;align-items:center;gap:6px;'
+                f'font-size:.75rem;color:#9CA3AF;font-family:Inter,sans-serif;">'
+                f'<span style="width:10px;height:10px;border-radius:2px;background:{color};display:inline-block;"></span>'
+                f'{safe_name}</span>'
+            )
 
-tl_label = "Timeline: " + ", then ".join(
-    f"{STYLE.get(a, ('', '', a))[2]} {mmss(n * step)}"
-    for a, n in runs_df.itertuples(index=False)
-)
-st.markdown(
-    f'<div style="display:flex;height:28px;border-radius:8px;overflow:hidden;gap:2px;" '
-    f'role="img" aria-label="{_html.escape(tl_label)}">'
-    + "".join(bars_parts)
-    + "</div>"
-    + f'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">{"".join(legend_parts)}</div>'
-    + f'<div style="display:flex;justify-content:space-between;font-size:.8rem;'
-    f'color:#9CA3AF;font-family:Inter,sans-serif;margin-top:4px;margin-bottom:16px;">'
-    f"<span>0:00</span><span>{mmss(dur / 2)}</span><span>{mmss(dur)}</span></div>",
-    unsafe_allow_html=True,
-)
+    tl_label = "Timeline: " + ", then ".join(
+        f"{STYLE.get(a, ('', '', a))[2]} {mmss(n * step)}"
+        for a, n in runs_df.itertuples(index=False)
+    )
+    st.markdown(
+        f'<div style="display:flex;height:28px;border-radius:8px;overflow:hidden;gap:2px;" '
+        f'role="img" aria-label="{_html.escape(tl_label)}">'
+        + "".join(bars_parts)
+        + "</div>"
+        + f'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;">{"".join(legend_parts)}</div>'
+        + f'<div style="display:flex;justify-content:space-between;font-size:.8rem;'
+        f'color:#9CA3AF;font-family:Inter,sans-serif;margin-top:4px;margin-bottom:16px;">'
+        f"<span>0:00</span><span>{mmss(dur / 2)}</span><span>{mmss(dur)}</span></div>",
+        unsafe_allow_html=True,
+    )
 
-# ---------------------------------------------------------------------------
-# Video player
-# ---------------------------------------------------------------------------
-section_label("Video")
-st.video(up)
+    section_label("Activity Breakdown")
+    breakdown_cols = st.columns(3)
+    for i, (activity, count) in enumerate(share.items()):
+        _, _, display_name = STYLE[activity]
+        pct = count / len(pred)
+        with breakdown_cols[i % len(breakdown_cols)]:
+            st.markdown(
+                f'<div class="dark-card">'
+                f'<p class="card-label">{_html.escape(display_name)}</p>'
+                f'<p class="card-value">{mmss(count * step)}</p>'
+                f'<p class="card-sub">{pct:.0%} of this video</p>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
 # ---------------------------------------------------------------------------
 # Per-window table (collapsed)

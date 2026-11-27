@@ -72,7 +72,7 @@ h1, h2, h3, h4 {
   letter-spacing: -0.02em;
 }
 
-p, li, label, span {
+p, li, label, span:not([data-testid="stIconMaterial"]) {
   font-family: 'Inter', system-ui, sans-serif !important;
   font-size: 1rem !important;
   line-height: 1.6 !important;
@@ -106,6 +106,13 @@ p, li, label, span {
   margin: 0 0 var(--sp-md) 0;
   letter-spacing: -0.03em;
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+.story-copy {
+  margin: 0 0 var(--sp-xl);
+  color: var(--clr-text-primary);
+  font-size: 1.25rem;
+  line-height: 1.5;
 }
 
 .activity-hero .hero-sub {
@@ -440,6 +447,16 @@ p, li, label, span {
   border: 1px dashed var(--clr-border) !important;
   border-radius: var(--radius-md) !important;
   padding: var(--sp-xl) var(--sp-lg) !important;
+}
+
+.stFileUploader button::before,
+.stFileUploader button::after {
+  content: none !important;
+  display: none !important;
+}
+
+.stFileUploader [data-testid="stIconMaterial"] {
+  display: none !important;
 }
 
 /* Sidebar */

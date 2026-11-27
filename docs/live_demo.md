@@ -34,7 +34,7 @@ UCI's vertical axis is `acc_x`, but the phone's vertical axis is its `y`. `src/l
 
 ## Without a phone: replay mode
 
-Choose **Replay sample** and press **Start**. The page plays `data/sample_synthetic.csv` back in real time, looping, through the same buffer → window → model path. Use this to rehearse the demo or to show the page when Wi-Fi fails.
+Choose **Replay sample** and press **Start**. The page plays `data/sample_synthetic.csv` back in real time, looping, through the same buffer → window → model path. Use this to rehearse the demo or to show the page when Wi-Fi fails. The replay CSV is not included in the repository and no script generates it; provide a compatible CSV at that path. If it is missing, the page explains why replay is unavailable and leaves the phone source usable.
 
 ## How it works
 
