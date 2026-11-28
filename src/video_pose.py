@@ -204,3 +204,24 @@ def predict_video(video_path, bundle, cfg) -> "pd.DataFrame":
     return pd.DataFrame({"start_time": np.array(starts) / v["fps"],
                          "activity": [bundle["classes"][i] for i in p.argmax(1)],
                          "confidence": p.max(1).round(3)})
+
+
+def predict_live(times, kp, bundle, cfg):
+    """Latest window of a live feed -> (activity, confidence), or None if too short or no body in frame.
+
+    times: seconds per frame (increasing); kp: [frames, 33, 4] raw keypoints. A webcam's frame
+    rate varies, so the last window is resampled to cfg fps before the speed features are built.
+    """
+    v = cfg["video"]
+    fps, win = v["fps"], v["window_frames"]
+    t = np.asarray(times, float)
+    if len(t) < 2 or t[-1] - t[0] < (win - 1) / fps:
+        return None
+    grid = t[-1] - np.arange(win)[::-1] / fps
+    flat = np.asarray(kp, float).reshape(len(t), -1)
+    rs = np.stack([np.interp(grid, t, flat[:, c]) for c in range(flat.shape[1])], 1)
+    w = normalize_pose(rs.reshape(win, 33, -1), v["max_gap"]).reshape(win, -1)
+    if np.isnan(w).any():
+        return None
+    p = bundle["model"].predict_proba(feature_windows(w[None], fps))[0]
+    return bundle["classes"][p.argmax()], float(p.max())

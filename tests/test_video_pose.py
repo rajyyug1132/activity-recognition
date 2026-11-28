@@ -66,3 +66,22 @@ def test_pose_features():
     i = FEATURE_NAMES.index
     assert b[i("spd_ankle")] > a[i("spd_ankle")] + 0.5
     assert abs(b[i("ankle_dy_peak_hz")] - 1.0) < 0.2 and b[i("ankle_dy_peak_frac")] > 0.5
+
+
+def test_predict_live():
+    from video_pose import predict_live
+
+    class Echo:  # fake model: probability of class 0 = mean of the first feature, kept in 0-1
+        def predict_proba(self, X):
+            p = 1 / (1 + np.exp(-X[:, :1]))
+            return np.hstack([p, 1 - p])
+
+    bundle = {"model": Echo(), "classes": ["walking", "standing"]}
+    cfg = {"video": dict(CFG["video"])}
+    kp = pose(90)
+    t30 = np.arange(90) / 30 + np.random.default_rng(1).uniform(0, 0.005, 90)  # jittery 30 fps webcam
+    assert predict_live(t30[:40], kp[:40], bundle, cfg) is None      # 1.3 s: shorter than the 2 s window
+    act, conf = predict_live(t30, kp, bundle, cfg)
+    assert act in ("walking", "standing") and 0.5 <= conf <= 1
+    kp[-40:] = np.nan                                                  # person left the frame
+    assert predict_live(t30, kp, bundle, cfg) is None
