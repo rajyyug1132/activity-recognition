@@ -63,6 +63,9 @@ class PhyphoxSource:
         q = "&".join([f"{b}={ta}|acc_time" for b in ACC] + [f"acc_time={ta}"]
                      + [f"{b}={tg}|gyr_time" for b in GYR] + [f"gyr_time={tg}"])
         buf = self._call("/get?" + q.replace("|", "%7C"))["buffer"]  # phyphox answers 400 to a raw |
+        if "gyr_time" not in buf or "acc_time" not in buf:
+            raise RuntimeError('wrong experiment open in phyphox. Open "HAR live (acc + gyro)", '
+                               "which records the accelerometer and gyroscope together.")
         a, g = _cols(buf, ["acc_time"] + ACC), _cols(buf, ["gyr_time"] + GYR)
         if len(g):
             self.t_gyr = g[-1, 0]
