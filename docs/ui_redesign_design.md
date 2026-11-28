@@ -1,3 +1,5 @@
+> **Superseded.** This is the v2 spec (dark theme, lime accent). The current system is v3, documented in `DESIGN.md`.
+
 # UI/UX Redesign — Activity Recognition App
 
 **Status:** Draft v1  

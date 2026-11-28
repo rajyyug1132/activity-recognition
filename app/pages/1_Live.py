@@ -1,13 +1,11 @@
 """Live activity from the Phyphox app over Wi-Fi, or a replay of the demo recording (app/demo).
 Phone setup: docs/live_demo.md. Run from the repo root: streamlit run app/streamlit_app.py
 
-UI redesign: Essor-inspired dark theme (see docs/ui_redesign_design.md).
-Presentation only — all data/inference logic is unchanged.
+Controls on the left, the status board on the right. Presentation only: the polling and
+prediction logic is unchanged (see DESIGN.md).
 """
-import html as _html
 import os
 import sys
-import time
 from pathlib import Path
 
 import streamlit as st
@@ -19,35 +17,25 @@ from live import LiveClassifier, PhyphoxSource, ReplaySource
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from components.ui import (
-    activity_hero,
+    board,
+    coalesce,
     footer,
     load_css,
+    notice,
     page_header,
-    section_label,
+    rail_mark,
+    section,
     setup_steps,
-    status_chip,
+    tape,
 )
 
 MODEL = "models/cnn_uci.keras"
 # Real UCI HAR recording of test person 12 (never trained on): walking, down, up, sit, stand, lie
 SAMPLE = Path(__file__).resolve().parents[1] / "demo" / "uci_test_person_12.csv"
-
-# New colorblind-safe activity palette (bar_color, bar_text, display_name)
-STYLE = {
-    "WALKING":            ("#4ADE80", "#000000", "Walking"),
-    "WALKING_UPSTAIRS":   ("#60A5FA", "#000000", "Walking upstairs"),
-    "WALKING_DOWNSTAIRS": ("#3B82F6", "#ffffff", "Walking downstairs"),
-    "SITTING":            ("#FBBF24", "#000000", "Sitting"),
-    "STANDING":           ("#FB923C", "#000000", "Standing"),
-    "LAYING":             ("#F87171", "#000000", "Lying"),
-}
 HISTORY = 30  # predictions kept in the strip (one per second)
+PHONE, REPLAY = "Phone", "Demo replay"
 
-st.set_page_config(
-    page_title="Live · Activity Recognition",
-    page_icon=":material/sensors:",
-    layout="centered",
-)
+st.set_page_config(page_title="Live · Activity Recognition", page_icon=":material/sensors:", layout="wide")
 load_css()
 
 
@@ -65,103 +53,80 @@ ss.setdefault("live", None)
 ss.setdefault("history", [])
 ss.setdefault("error", None)
 
-# ---------------------------------------------------------------------------
-# Header row: title + status chip
-# ---------------------------------------------------------------------------
-title_col, chip_col = st.columns([3, 1])
-with title_col:
-    page_header("Live", "Wear your phone at the waist and see what you are doing, updated every second. "
-                "No phone? Play the demo recording.")
+page_header(
+    "Live",
+    "Wear your phone at the waist and see what you are doing, updated every second. "
+    "No phone? Play the demo recording.",
+)
+rail, canvas = st.columns([1, 2.4], gap="large")
 
-with chip_col:
-    st.markdown("<div style='padding-top:14px;'>", unsafe_allow_html=True)
-    if ss.live is not None:
-        mode_val = st.session_state.get("_live_mode", "Replay mode")
-        if mode_val.startswith("Phone"):
-            status_chip("Phone connected", "connected")
-        else:
-            status_chip("Demo recording", "replay")
+# ---------------------------------------------------------------------------
+# Controls (left rail)
+# ---------------------------------------------------------------------------
+with rail:
+    rail_mark()
+    mode = st.segmented_control("Source", [PHONE, REPLAY], default=PHONE, required=True,
+                                disabled=ss.live is not None)
+    ss["_live_mode"] = mode  # the status chip reads it
+
+    if mode == PHONE:
+        ip = st.text_input("Phone address shown in Phyphox", key="phone_ip", placeholder="192.168.0.42:8080",
+                           disabled=ss.live is not None)
     else:
-        if ss.history:
-            status_chip("Stopped", "idle")
-        else:
-            status_chip("Idle", "idle")
-    st.markdown("</div>", unsafe_allow_html=True)
+        ip = ss.get("phone_ip", "")
+        ss.phone_ip = ip  # keep what was typed while the field is hidden
 
-# ---------------------------------------------------------------------------
-# Source selector & controls
-# ---------------------------------------------------------------------------
-mode = st.radio(
-    "Source",
-    ["Phone (Phyphox)", "Demo recording (no phone)"],
-    horizontal=True,
-    disabled=ss.live is not None,
-)
-# Store mode for status chip label
-st.session_state["_live_mode"] = mode
+    sample_available = SAMPLE.is_file()
+    if mode == REPLAY and not sample_available:
+        notice(
+            "Replay is unavailable because app/demo/uci_test_person_12.csv is missing. "
+            "Restore it from git, or choose Phone.",
+            "warn",
+        )
 
-ip = st.text_input(
-    "Phone address shown in Phyphox",
-    placeholder="192.168.0.42:8080",
-    disabled=ss.live is not None or mode != "Phone (Phyphox)",
-)
+    if ss.live is None:
+        if st.button("Start", type="primary", width="stretch", icon=":material/play_arrow:",
+                     disabled=mode == REPLAY and not sample_available):
+            try:
+                src = PhyphoxSource(ip) if mode == PHONE else ReplaySource(SAMPLE)
+                src.start()
+                ss.live = (src, LiveClassifier(load_model(), cfg))
+                ss.history = []
+                ss.error = None
+            except FileNotFoundError:
+                if mode == REPLAY:
+                    ss.error = (
+                        "The replay sample became unavailable. Restore "
+                        "app/demo/uci_test_person_12.csv from git, or choose Phone."
+                    )
+                else:
+                    ss.error = "Could not start: the requested file was not found."
+            except Exception as e:
+                ss.error = f"Could not start: {e}"
+            st.rerun()
+    else:
+        if st.button("Stop", width="stretch", icon=":material/stop:"):
+            try:
+                ss.live[0].stop()
+            except Exception:
+                pass
+            ss.live = None
+            st.rerun()
 
-sample_available = SAMPLE.is_file()
-if mode == "Demo recording (no phone)" and not sample_available:
-    st.warning(
-        "Replay is unavailable because app/demo/uci_test_person_12.csv is missing. "
-        "Restore it from git, or choose Phone (Phyphox)."
-    )
-
-c1, c2 = st.columns(2)
-
-if c1.button(
-    "Start",
-    type="primary",
-    use_container_width=True,
-    disabled=ss.live is not None or (mode == "Demo recording (no phone)" and not sample_available),
-):
-    try:
-        src = PhyphoxSource(ip) if mode.startswith("Phone") else ReplaySource(SAMPLE)
-        src.start()
-        ss.live = (src, LiveClassifier(load_model(), cfg))
-        ss.history = []
-        ss.error = None
-    except FileNotFoundError:
-        if mode == "Demo recording (no phone)":
-            ss.error = (
-                "The replay sample became unavailable. Restore "
-                "app/demo/uci_test_person_12.csv from git, or choose Phone (Phyphox)."
-            )
-        else:
-            ss.error = "Could not start: the requested file was not found."
-    except Exception as e:
-        ss.error = f"Could not start: {e}"
-    st.rerun()
-
-if c2.button("Stop", use_container_width=True, disabled=ss.live is None):
-    try:
-        ss.live[0].stop()
-    except Exception:
-        pass
-    ss.live = None
-    st.rerun()
-
-# ---------------------------------------------------------------------------
-# Setup steps (shown when phone mode and not running)
-# ---------------------------------------------------------------------------
-if mode.startswith("Phone") and ss.live is None:
-    setup_steps([
-        "Install Phyphox on your phone.",
-        'Open the "HAR live (acc + gyro)" experiment (docs/har_live.phyphox). Built-in experiments lack the buffers the model needs.',
-        "Enable Remote Access in the Phyphox menu.",
-        "Type the IP address and port Phyphox shows into the field above.",
-        "Press Start.",
-    ])
+    if mode == PHONE and ss.live is None:
+        section("Connect the phone")
+        setup_steps([
+            "Install Phyphox on your phone.",
+            'Open the "HAR live (acc + gyro)" experiment (docs/har_live.phyphox). '
+            "Built-in experiments lack the buffers the model needs.",
+            "Enable Remote Access in the Phyphox menu.",
+            "Type the IP address and port Phyphox shows into the field above.",
+            "Press Start.",
+        ])
 
 
 # ---------------------------------------------------------------------------
-# Live panel (polls every second)
+# Status board (polls every second)
 # ---------------------------------------------------------------------------
 @st.fragment(run_every=1.0)
 def panel():
@@ -178,50 +143,32 @@ def panel():
     if ss.error:
         st.error(ss.error)
 
+    running = ss.live is not None
+    if running:
+        chip = ("Phone connected" if ss.get("_live_mode") == PHONE else "Demo recording", "live")
+    else:
+        chip = ("Stopped" if ss.history else "Idle", "idle")
+
     if not ss.history:
-        # Waiting / idle state
-        waiting = ss.live is not None
-        activity_hero(
-            activity_name="STANDING",  # placeholder, shown as "—"
-            confidence=None,
-            duration=None,
-            model=None,
-        )
-        # Override the placeholder with a waiting message
-        msg = "Collecting the first 2.56 s of motion…" if waiting else "Press Start above."
-        st.markdown(
-            f'<div style="margin-top:-12px;padding:0 4px 16px;'
-            f'font-size:.9rem;color:#9CA3AF;font-family:Inter,sans-serif;">{_html.escape(msg)}</div>',
-            unsafe_allow_html=True,
+        # Nothing measured yet: the board must not name an activity.
+        board(
+            None,
+            headline_text="Listening…" if running else "Not running",
+            hint="The first label appears after about 3 seconds." if running else "Press Start to begin.",
+            chip=chip,
         )
         return
 
-    act, conf = ss.history[-1]
-    state_note = "" if ss.live else " (stopped)"
-    activity_hero(
-        activity_name=act,
-        confidence=conf,
-        duration=state_note.strip() if state_note else None,
-        model=None,
-    )
+    act_key, conf = ss.history[-1]
+    if ss.get("_last_act") != act_key:  # bump so the name re-plays its entrance
+        ss["_pop"] = ss.get("_pop", 0) + 1
+        ss["_last_act"] = act_key
+    board(act_key, confidence=conf, chip=chip, pop=ss.get("_pop", 0))
 
-    # Rolling strip
-    section_label(f"Recent Activity — last {len(ss.history)} updates")
-    cells = "".join(
-        f'<div style="flex:1;background:{STYLE[a][0]};" '
-        f'title="{_html.escape(STYLE[a][2])} {c:.0%}" aria-label="{_html.escape(STYLE[a][2])}"></div>'
-        for a, c in ss.history
-    )
-    st.markdown(
-        f'<div role="img" aria-label="Recent activities" '
-        f'style="display:flex;gap:2px;height:36px;border-radius:8px;overflow:hidden;margin-bottom:4px;">'
-        f'{cells}</div>'
-        f'<div style="display:flex;justify-content:space-between;font-size:.8rem;'
-        f'color:#9CA3AF;font-family:Inter,sans-serif;margin-bottom:16px;">'
-        f'<span>earlier</span><span>now</span></div>',
-        unsafe_allow_html=True,
-    )
+    section("Recent activity", f"last {len(ss.history)} updates")
+    tape(coalesce(a for a, _ in ss.history), step=1.0, axis=("earlier", "now"))
 
 
-panel()
-footer()
+with canvas:
+    panel()
+    footer()

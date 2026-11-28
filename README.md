@@ -26,7 +26,7 @@ Upload a phone recording (CSV) and get a timeline of what you were doing. The ap
 
 **Live page:** classifies a phone's sensors as they stream over Wi-Fi from the Phyphox app, updating once a second. A **Demo recording** mode plays `app/demo/uci_test_person_12.csv` in real time for demos without a phone. Setup: [docs/live_demo.md](docs/live_demo.md). Tested on a real phone on 28 Nov: data arrives at about 55 samples/s and the first label appears after 3 s.
 
-**Sample recording:** `app/demo/uci_test_person_12.csv` is 2 minutes of UCI HAR test person 12 (walking, downstairs, upstairs, sitting, standing, lying), a person the model never trained on, chosen as the median of the 9 test people by accuracy. The app labels 96% of its windows correctly. The home page's *Try a sample recording* button loads it. UCI HAR: Reyes-Ortiz et al., CC BY 4.0.
+**Sample recording:** `app/demo/uci_test_person_12.csv` is 2 minutes of UCI HAR test person 12 (walking, downstairs, upstairs, sitting, standing, lying), a person the model never trained on, chosen as the median of the 9 test people by accuracy. The app labels 96% of its windows correctly. The *Try the sample recording* button on the Overview and Phone recording pages loads it. UCI HAR: Reyes-Ortiz et al., CC BY 4.0.
 
 ## Results
 
