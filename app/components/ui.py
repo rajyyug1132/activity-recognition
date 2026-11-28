@@ -1,307 +1,271 @@
 """
 app/components/ui.py
-Shared UI helpers for the Activity Recognition redesign.
-Implements the Essor-inspired dark design system.
-All functions return HTML strings or call st.markdown — no logic, only presentation.
+Shared presentation helpers. No ML logic.
+
+Colours live in styles/theme.css as CSS variables; this module only emits class names and
+structure. Every helper renders one HTML block through st.markdown(unsafe_allow_html=True),
+because st.html strips inline <svg>. Keep the strings on one line: a blank line ends the
+Markdown HTML block and the rest renders as a code block.
 """
 from __future__ import annotations
 
 import html
+import itertools
 import pathlib
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# Design tokens (mirror of theme.css — single source is the CSS file;
-# these dicts are used only to build inline styles for HTML components
-# that live outside the Streamlit widget tree).
-# ---------------------------------------------------------------------------
+_CSS_PATH = pathlib.Path(__file__).resolve().parent.parent / "styles" / "theme.css"
+esc = html.escape
 
-#: (bar_color, bar_text_color, display_name, icon_text)
-ACTIVITY_STYLE: dict[str, tuple[str, str, str, str]] = {
-    "WALKING":            ("#4ADE80", "#000000", "Walking",            "Walking"),
-    "WALKING_UPSTAIRS":   ("#60A5FA", "#000000", "Walking upstairs",   "Up stairs"),
-    "WALKING_DOWNSTAIRS": ("#3B82F6", "#ffffff", "Walking downstairs", "Down stairs"),
-    "SITTING":            ("#FBBF24", "#000000", "Sitting",            "Sitting"),
-    "STANDING":           ("#FB923C", "#000000", "Standing",           "Standing"),
-    "LAYING":             ("#F87171", "#000000", "Lying",              "Lying"),
-}
-
-_FALLBACK = ("#9CA3AF", "#000000", "Unknown", "Unknown")
-
-_CSS_PATH = pathlib.Path(__file__).parent.parent / "styles" / "theme.css"
-
-
-# ---------------------------------------------------------------------------
-# CSS loader
-# ---------------------------------------------------------------------------
-
-def load_css() -> None:
-    """Inject theme.css and Inter font into the Streamlit app.
-
-    Call once at the top of every page script.
-    """
-    css_text = _CSS_PATH.read_text(encoding="utf-8")
-    st.html(f"<style>\n{css_text}\n</style>")
-
-
-# ---------------------------------------------------------------------------
-# mmss
-# ---------------------------------------------------------------------------
-
-def mmss(sec: float) -> str:
-    """Format seconds as mm:ss string."""
-    sec = max(0, int(sec))
-    return f"{sec // 60:02d}:{sec % 60:02d}"
-
-
-# ---------------------------------------------------------------------------
-# section_label
-# ---------------------------------------------------------------------------
-
-def section_label(text: str) -> None:
-    """Render a small-caps eyebrow section label via st.markdown."""
-    escaped = html.escape(text)
-    st.markdown(
-        f'<p class="section-label">{escaped}</p>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# activity_hero
-# ---------------------------------------------------------------------------
-
-def activity_hero(
-    activity_name: str,
-    confidence: float | None = None,
-    duration: str | None = None,
-    model: str | None = None,
-    eyebrow: str = "CURRENT ACTIVITY",
-) -> None:
-    """Render the full-width activity hero card.
-
-    Args:
-        activity_name: Canonical activity key (e.g. ``"WALKING"``) or display
-                       name. Unknown keys render as-is.
-        confidence:    Float 0–1. Rendered as a percentage badge when given.
-        duration:      Pre-formatted duration string (e.g. ``"02:10"``).
-                       Shown in the sub-line when given.
-        model:         Model identifier shown as a quiet chip in the corner.
-    """
-    key = activity_name.upper().replace(" ", "_")
-    style = ACTIVITY_STYLE.get(key)
-    if style is None:
-        color = _FALLBACK[0]
-        display_name = activity_name
-    else:
-        color, _, display_name, _ = style
-
-    conf_badge = ""
-    if confidence is not None:
-        pct = int(round(confidence * 100))
-        conf_badge = (
-            f'<span class="confidence-badge">{pct}% confident</span>'
-        )
-
-    dur_part = ""
-    if duration:
-        escaped_dur = html.escape(str(duration))
-        dur_part = f'<span class="hero-duration">{escaped_dur}</span>'
-
-    model_chip = ""
-    if model:
-        escaped_model = html.escape(str(model))
-        model_chip = f'<span class="model-chip">{escaped_model}</span>'
-
-    sub_line = ""
-    if conf_badge or dur_part:
-        sub_line = f'<div class="hero-sub">{conf_badge}{dur_part}</div>'
-
-    # Color accent strip on the left border
-    act_style = f"border-left: 4px solid {color};"
-
-    escaped_display = html.escape(display_name)
-    # One line, no blank lines: an empty {model_chip} or {sub_line} used to leave a blank
-    # line, which ends Markdown's HTML block and shows the indented rest as a code block.
-    st.markdown(
-        f'<div class="activity-hero" style="{act_style}">{model_chip}'
-        f'<p class="eyebrow">{html.escape(eyebrow)}</p>'
-        f'<h1 class="activity-name">{escaped_display}</h1>{sub_line}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# status_chip
-# ---------------------------------------------------------------------------
-
-def status_chip(label: str, variant: str = "idle") -> None:
-    """Render a pill-shaped status chip inline.
-
-    Args:
-        label:   Visible text (e.g. ``"Replay mode"``, ``"Phone connected"``).
-        variant: One of ``"replay"``, ``"connected"``, ``"idle"``, ``"error"``.
-    """
-    safe_variant = html.escape(variant)
-    safe_label = html.escape(label)
-    st.markdown(
-        f'<span class="status-chip {safe_variant}">{safe_label}</span>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# timeline_bar
-# ---------------------------------------------------------------------------
-
-def timeline_bar(
-    runs: list[dict],
-    total_windows: int,
-    *,
-    show_legend: bool = True,
-) -> None:
-    """Render a horizontal proportional colour-coded timeline bar.
-
-    Args:
-        runs:           List of dicts with keys ``"activity"`` (str) and
-                        ``"count"`` (int — number of windows).
-        total_windows:  Total window count (used to compute proportions).
-        show_legend:    Whether to render a legend below the bar.
-    """
-    if not runs or total_windows == 0:
-        st.markdown(
-            '<div class="timeline-bar" style="background:#2A2B2D;height:28px;border-radius:8px;"></div>',
-            unsafe_allow_html=True,
-        )
-        return
-
-    segments = []
-    for run in runs:
-        act = run.get("activity", "UNKNOWN").upper()
-        count = int(run.get("count", 0))
-        pct = count / total_windows * 100
-        color, text_color, display_name, _ = ACTIVITY_STYLE.get(act, _FALLBACK)
-        safe_name = html.escape(display_name)
-        segments.append(
-            f'<div class="seg" style="width:{pct:.2f}%;background:{color};" '
-            f'title="{safe_name} ({pct:.1f}%)" aria-label="{safe_name} {pct:.1f}%"></div>'
-        )
-
-    segs_html = "".join(segments)
-    bar_html = f'<div class="timeline-bar">{segs_html}</div>'
-
-    if show_legend:
-        seen: set[str] = set()
-        legend_items = []
-        for run in runs:
-            act = run.get("activity", "UNKNOWN").upper()
-            if act in seen:
-                continue
-            seen.add(act)
-            color, _, display_name, _ = ACTIVITY_STYLE.get(act, _FALLBACK)
-            safe_name = html.escape(display_name)
-            legend_items.append(
-                f'<span class="leg-item">'
-                f'<span class="leg-dot" style="background:{color};"></span>'
-                f'{safe_name}'
-                f'</span>'
-            )
-        legend_html = f'<div class="timeline-legend">{"".join(legend_items)}</div>'
-    else:
-        legend_html = ""
-
-    st.markdown(
-        f'<div class="timeline-wrap">{bar_html}{legend_html}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# activity_card
-# ---------------------------------------------------------------------------
-
-def activity_card(pairs: list[tuple[str, str]], sub: str | None = None) -> None:
-    """Render a dark surface card with label/value pairs.
-
-    Args:
-        pairs: List of ``(label, value)`` tuples. Label is uppercase small-caps,
-               value is large bold text.
-        sub:   Optional sub-line beneath the value.
-    """
-    rows = []
-    for label, value in pairs:
-        safe_label = html.escape(str(label))
-        safe_value = html.escape(str(value))
-        sub_html = f'<p class="card-sub">{html.escape(str(sub))}</p>' if sub else ""
-        rows.append(
-            f'<p class="card-label">{safe_label}</p>'
-            f'<p class="card-value">{safe_value}</p>'
-            f'{sub_html}'
-        )
-
-    st.markdown(
-        f'<div class="dark-card">{"".join(rows)}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# empty_state
-# ---------------------------------------------------------------------------
-
-def page_header(title: str, subtitle: str) -> None:
-    """Page title and one sentence on what the page is for."""
-    st.markdown(
-        f'<div class="page-header"><h1>{html.escape(title)}</h1>'
-        f'<p class="page-sub">{html.escape(subtitle)}</p></div>',
-        unsafe_allow_html=True,
-    )
-
-
-def empty_state(icon: str, heading: str, body: str) -> None:
-    """Render a centred empty-state block. `icon` is unused (kept for callers); headings say enough."""
-    st.markdown(
-        f'<div class="empty-state"><p class="empty-heading">{html.escape(heading)}</p>'
-        f'<p class="empty-body">{html.escape(body)}</p></div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# info_card
-# ---------------------------------------------------------------------------
-
-def info_card(text: str) -> None:
-    """Render a dark info card with an accent left-border."""
-    safe_text = html.escape(text)
-    st.markdown(
-        f'<div class="info-card">{safe_text}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------------
-# footer
-# ---------------------------------------------------------------------------
-
-PHONE_NOTE = ("Phone model: 91% accuracy on 9 people it never saw (UCI HAR). "
+PHONE_ACCURACY = 91  # % of windows right on the 9 never-seen UCI HAR people (reports/results.md)
+PHONE_NOTE = (f"Phone model: {PHONE_ACCURACY}% accuracy on 9 people it never saw (UCI HAR). "
               "Real-world results vary with phone placement and sensor calibration.")
 
 
+# ---------------------------------------------------------------------------
+# Activities: one registry for the phone model (UPPER_CASE keys) and the camera model
+# (lower-case keys). Colours are CSS classes, never hex.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Act:
+    label: str  # "Walking upstairs"
+    short: str  # "Upstairs"
+    cls: str    # CSS class that sets --act and --on
+    icon: str   # key in _ICONS
+
+
+ACTIVITIES: dict[str, Act] = {
+    "WALKING": Act("Walking", "Walking", "act-walking", "walk"),
+    "WALKING_UPSTAIRS": Act("Walking upstairs", "Upstairs", "act-upstairs", "up"),
+    "WALKING_DOWNSTAIRS": Act("Walking downstairs", "Downstairs", "act-downstairs", "down"),
+    "SITTING": Act("Sitting", "Sitting", "act-sitting", "sit"),
+    "STANDING": Act("Standing", "Standing", "act-standing", "stand"),
+    "LAYING": Act("Lying", "Lying", "act-lying", "lie"),
+    "STAIRS": Act("Stairs", "Stairs", "act-upstairs", "up"),  # camera model saved before notebook 09
+}
+_ALIASES = {"UPSTAIRS": "WALKING_UPSTAIRS", "DOWNSTAIRS": "WALKING_DOWNSTAIRS", "LYING": "LAYING"}
+UNKNOWN = Act("Unknown", "Unknown", "act-none", "dot")
+
+
+def act(key: object) -> Act:
+    """Style for 'WALKING', 'walking', 'Walking upstairs' or 'upstairs'. Unknown keys get a neutral style."""
+    k = str(key).upper().replace(" ", "_")
+    return ACTIVITIES.get(_ALIASES.get(k, k), UNKNOWN)
+
+
+# Pictograms on a 24-unit grid; stroke, caps and colour come from the .ico CSS class.
+_ICONS = {
+    "stand": '<circle cx="12" cy="4.5" r="2.1"/><path d="M12 7.6V15M8 12.4l4-3.2 4 3.2M12 15l-2.9 6.2M12 15l2.9 6.2"/>',
+    "walk": '<circle cx="13.2" cy="4.5" r="2.1"/><path d="M12.6 7.6l-.9 7.2M12.2 9.6l-3.6 2.8M12.4 9.6l3.8 1.8M11.7 14.8l-3.4 6.4M11.7 14.8l3.9 3 .9 3.4"/>',
+    "up": '<path d="M3 20.5h4.5V16H12v-4.5h4.5V7H21M4.5 10.5l5-5M9.5 5.5H6.3M9.5 5.5v3.2"/>',
+    "down": '<path d="M3 7h4.5v4.5H12V16h4.5v4.5H21M14.5 4.5l5 5M19.5 9.5h-3.2M19.5 9.5V6.3"/>',
+    "sit": '<circle cx="8.5" cy="4.6" r="2.1"/><path d="M8.5 7.7V15M8.5 15h7.2M15.7 15v6M8.5 10.2l4.4 2.6"/>',
+    "lie": '<circle cx="4.9" cy="14.6" r="2.1"/><path d="M8 14.6h12.3l1.7 2.4M3 20h18"/>',
+    "dot": '<circle cx="12" cy="12" r="3"/>',
+    "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+}
+
+
+def icon(key: str, cls: str = "ico") -> str:
+    return (f'<svg class="{cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+            f'{_ICONS.get(key, _ICONS["dot"])}</svg>')
+
+
+# ---------------------------------------------------------------------------
+# Small pure helpers
+# ---------------------------------------------------------------------------
+
+def mmss(sec: float) -> str:
+    """Seconds as m:ss ('2:04'). One format everywhere."""
+    s = max(0, int(round(sec)))
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def listing(words: Sequence[str]) -> str:
+    """['a', 'b', 'c'] -> 'a, b and c'."""
+    words = list(words)
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
+def coalesce(keys: Iterable[object]) -> list[tuple[str, int]]:
+    """Consecutive equal activities -> [(key, run_length), ...] in time order."""
+    return [(str(k), len(list(g))) for k, g in itertools.groupby(keys)]
+
+
+_NUM = ["no", "one", "two", "three", "four", "five", "six", "seven"]
+
+
+def summarize(share: Mapping[str, float], what: str = "recording") -> tuple[str, str]:
+    """Headline and sub-line for a result. 'Mostly X' only when X really dominates."""
+    present = sorted(((k, v) for k, v in share.items() if v > 0), key=lambda kv: -kv[1])
+    total = sum(v for _, v in present)
+    if not present or total <= 0:
+        return "No activity found", ""
+    (top, top_v), rest = present[0], present[1:]
+    name, frac = act(top).label.lower(), top_v / total
+    if not rest:
+        return f"All {name}", f"The whole {what} was {name}."
+    if frac >= 0.6:
+        others = listing([act(k).label.lower() for k, _ in rest])
+        return f"Mostly {name}", f"{frac:.0%} of the {what}, with {others}."
+    return (f"A mix of {_NUM[min(len(present), 7)]} activities",
+            f"The longest, {name}, takes {frac:.0%} of the {what}.")
+
+
+def kinetic(text: str) -> str:
+    """Words that rise out of a mask on load (CSS only; see .kinetic in theme.css)."""
+    return " ".join(f'<span class="w" style="--i:{i}"><span>{esc(w)}</span></span>'
+                    for i, w in enumerate(text.split()))
+
+
+def _md(markup: str) -> None:
+    st.markdown(markup, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
+# Page chrome
+# ---------------------------------------------------------------------------
+
+def load_css() -> None:
+    """Inject theme.css. Call once at the top of every page script."""
+    st.html(f"<style>{_CSS_PATH.read_text(encoding='utf-8')}</style>")
+
+
+def page_header(title: str, subtitle: str) -> None:
+    _md(f'<header class="page-head"><h1>{esc(title)}</h1><p>{esc(subtitle)}</p></header>')
+
+
+def section(title: str, meta: str = "", *, big: bool = False) -> None:
+    meta_html = f"<span>{esc(meta)}</span>" if meta else ""
+    _md(f'<div class="sec{" lg" if big else ""}"><h2>{esc(title)}</h2>{meta_html}</div>')
+
+
+def headline(title: str, sub: str = "") -> None:
+    sub_html = f"<p>{esc(sub)}</p>" if sub else ""
+    _md(f'<div class="headline"><h2 class="kinetic" aria-label="{esc(title)}">{kinetic(title)}</h2>{sub_html}</div>')
+
+
+def rail_mark() -> None:
+    """Marks the column that holds the controls; theme.css turns it into the left panel."""
+    _md('<span class="rail-mark"></span>')
+
+
 def footer(note: str = PHONE_NOTE) -> None:
-    """Footer with the accuracy note for the model on this page."""
-    st.markdown(f'<div class="app-footer">{html.escape(note)}</div>', unsafe_allow_html=True)
+    _md(f'<p class="foot"><b>About these numbers.</b> {esc(note)}</p>')
+
+
+def notice(text: str, kind: str = "info") -> None:
+    """Inline message with a full hairline border (kind: info, warn, err, ok)."""
+    _md(f'<div class="notice {esc(kind)}" role="note">{icon("info")}<p>{esc(text)}</p></div>')
+
+
+def empty_state(heading: str, body: str) -> None:
+    """Empty canvas that previews what will appear: a ghost timeline, then plain words."""
+    ghost = "".join(f'<i style="--w:{w};--i:{i}"></i>' for i, w in enumerate((17, 16, 14, 18, 19, 16)))
+    _md(f'<div class="empty"><div class="ghost" aria-hidden="true">{ghost}</div>'
+        f'<h2>{esc(heading)}</h2><p>{esc(body)}</p></div>')
+
+
+def setup_steps(steps: Sequence[str]) -> None:
+    _md(f'<ol class="steps">{"".join(f"<li><span>{esc(s)}</span></li>" for s in steps)}</ol>')
 
 
 # ---------------------------------------------------------------------------
-# setup_steps
+# Data components
 # ---------------------------------------------------------------------------
 
-def setup_steps(steps: list[str]) -> None:
-    """Render numbered setup steps in a dark card."""
-    items = "".join(f"<li>{html.escape(s)}</li>" for s in steps)
-    st.markdown(
-        f'<div class="dark-card"><ol class="setup-steps">{items}</ol></div>',
-        unsafe_allow_html=True,
-    )
+def tape_html(runs: Sequence[tuple[str, int]], *, step: float, total: float | None = None,
+              axis: Sequence[str] | None = None) -> str:
+    """Proportional timeline with the label inside each block.
+
+    runs: [(activity_key, n_windows), ...] in time order. step: seconds per window.
+    total: seconds for the axis (defaults to windows * step). axis: replaces the three tick labels.
+    """
+    n = sum(c for _, c in runs)
+    if n <= 0:
+        return ""
+    blocks, spoken = [], []
+    for i, (key, count) in enumerate(runs):
+        a, pct = act(key), count / n * 100
+        size = "" if pct >= 11 else (" min" if pct >= 5 else " tiny")
+        blocks.append(f'<div class="seg {a.cls}{size}" style="--w:{pct:.2f};--i:{i}" '
+                      f'title="{esc(a.label)} {mmss(count * step)}">{icon(a.icon)}<span>{esc(a.short)}</span></div>')
+        spoken.append(f"{a.label} {mmss(count * step)}")
+    total = n * step if total is None else total
+    ticks = list(axis) if axis else [mmss(0), mmss(total / 2), mmss(total)]
+    return (f'<figure class="tape" role="img" aria-label="{esc("Timeline: " + ", then ".join(spoken))}">'
+            f'<div class="tape-bar">{"".join(blocks)}</div>'
+            f'<div class="tape-axis">{"".join(f"<span>{esc(t)}</span>" for t in ticks)}</div></figure>')
+
+
+def tape(runs: Sequence[tuple[str, int]], *, step: float, total: float | None = None,
+         axis: Sequence[str] | None = None) -> None:
+    markup = tape_html(runs, step=step, total=total, axis=axis)
+    if markup:
+        _md(markup)
+
+
+def ledger(rows: Iterable[tuple[str, float, str, str]]) -> None:
+    """One row per activity. rows: (activity_key, bar fraction 0-1, main text, side text)."""
+    items = []
+    for i, (key, frac, main, side) in enumerate(rows):
+        a = act(key)
+        items.append(f'<li class="{a.cls}" style="--w:{max(0.0, min(1.0, frac)):.4f};--i:{i}">'
+                     f'<span class="chipico">{icon(a.icon)}</span><span class="nm">{esc(a.label)}</span>'
+                     f'<span class="tm">{esc(main)}</span><span class="pc">{esc(side)}</span>'
+                     f'<span class="trk"><i></i></span></li>')
+    _md(f'<ul class="ledger">{"".join(items)}</ul>')
+
+
+def _chip(label: str, kind: str = "idle") -> str:
+    return f'<span class="chip {esc(kind)}"><i class="dot"></i>{esc(label)}</span>'
+
+
+def board(key: str | None = None, *, confidence: float | None = None, headline_text: str = "",
+          hint: str = "", chip: tuple[str, str] | None = None, pop: int = 0) -> None:
+    """Live status panel. key=None is the idle state: it never names an activity.
+
+    pop: bump it when the activity changes; the name re-plays its entrance (A/B animation names).
+    """
+    chip_html = _chip(*chip) if chip else ""
+    if key is None:
+        _md(f'<section class="board idle" aria-live="polite"><div class="board-top">{chip_html}</div>'
+            f'<h2 class="board-name">{esc(headline_text)}</h2><p class="board-hint">{esc(hint)}</p></section>')
+        return
+    a = act(key)
+    meter = ""
+    if confidence is not None:
+        meter = (f'<div class="board-meta"><span class="meter"><i style="--w:{confidence:.3f}"></i></span>'
+                 f'<span>{round(confidence * 100)}% confident</span></div>')
+    _md(f'<section class="board {a.cls}" aria-live="polite"><div class="board-top">{chip_html}</div>'
+        f'<div class="board-main">{icon(a.icon, "ico big")}'
+        f'<h2 class="board-name pop-{"ab"[pop % 2]}">{esc(a.label)}</h2></div>{meter}</section>')
+
+
+def facts(pairs: Iterable[tuple[str, str]], *, col: bool = False) -> None:
+    cells = "".join(f"<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>" for k, v in pairs)
+    _md(f'<dl class="facts{" col" if col else ""}">{cells}</dl>')
+
+
+def confidence_chart(xs: Iterable[float], ys: Iterable[float], *, threshold: float = 0.6) -> None:
+    """Model confidence per window over time. ys are 0-1."""
+    xs, ys = list(xs), list(ys)
+    if len(xs) < 2:
+        return
+    w, h, pad = 640, 150, 6
+    x0, span = xs[0], (xs[-1] - xs[0]) or 1.0
+    pts = " ".join(f"{pad + (x - x0) / span * (w - 2 * pad):.1f},{pad + (1 - y) * (h - 2 * pad):.1f}"
+                   for x, y in zip(xs, ys))
+    ty = pad + (1 - threshold) * (h - 2 * pad)
+    svg = (f'<svg class="chart" viewBox="0 0 {w} {h}" preserveAspectRatio="none" role="img" '
+           f'aria-label="Model confidence for each window over time">'
+           f'<line class="grid" x1="0" x2="{w}" y1="{pad}" y2="{pad}"/>'
+           f'<line class="grid" x1="0" x2="{w}" y1="{h - pad}" y2="{h - pad}"/>'
+           f'<line class="thr" x1="0" x2="{w}" y1="{ty:.1f}" y2="{ty:.1f}"/>'
+           f'<polyline class="ln" points="{pts}"/></svg>')
+    _md(f'<figure class="plot">{svg}<figcaption><span>0:00</span>'
+        f'<span>top = 100%, dashed = {threshold:.0%}</span><span>{mmss(xs[-1])}</span></figcaption></figure>')

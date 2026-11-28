@@ -1,155 +1,113 @@
-# Activity Recognition — Design System
+# Activity Recognition: Design System
 
-**Version:** 2.0 (Essor-inspired dark theme)  
-**Branch:** `ui-ux-redesign`  
-**Replaces:** Oura Analysis v1 (warm cream, Editorial New serif)
+**Version 3.0.** Replaces v2 (dark theme, lime `#D4FF00` accent, Inter). The v2 spec is kept in
+`docs/ui_redesign_design.md` for history only.
 
----
+## Principle
 
-## Colour Tokens
+The interface is **navy ink on cool paper**. Chroma only ever means an activity. Buttons, tabs, focus rings and
+links are ink; the six activity colours appear on the timeline, the ledger, the live board and the pictograms,
+and nowhere else. A reviewer can read the colour of any pixel as data.
 
-| Token | Hex | Tailwind ref | Usage |
-|-------|-----|-------------|-------|
-| `--clr-bg` | `#0B0B0C` | — | Page background (60% rule) |
-| `--clr-surface` | `#17181A` | — | Card / panel surfaces (30%) |
-| `--clr-border` | `#2A2B2D` | — | Subtle card borders |
-| `--clr-text-primary` | `#F5F5F5` | neutral-100 | Body text, headings |
-| `--clr-text-secondary` | `#9CA3AF` | gray-400 | Labels, captions |
-| `--clr-text-disabled` | `#4B5563` | gray-600 | Placeholders, footer |
-| `--clr-accent` | `#D4FF00` | — | Primary buttons, active tab, highlights |
-| `--clr-accent-fg` | `#0B0B0C` | — | Text on accent backgrounds |
-| `--clr-danger` | `#F87171` | red-400 | Error states |
-| `--clr-success` | `#4ADE80` | green-400 | Success states |
+Register: product (a tool people use to look at results), with one brand surface, the Overview page.
 
-**To change the accent colour:** update `--clr-accent` in `app/styles/theme.css` and `primaryColor` in `.streamlit/config.toml`.
+## Colour (all hex lives in `app/styles/theme.css` and `.streamlit/config.toml`)
 
-### Activity Data Colours
+| Token | Hex | Use | Contrast |
+|---|---|---|---|
+| `--paper` | `#F4F6F9` | Page | n/a |
+| `--surface` | `#FFFFFF` | Panels, inputs | n/a |
+| `--rail` | `#E9EDF3` | Tracks, ghost bars | n/a |
+| `--line` | `#DCE1E9` | Hairlines | n/a |
+| `--line-strong` | `#737D92` | Input and dashed borders | 3.8:1 on paper |
+| `--ink` | `#14213D` | Text, primary buttons, focus ring | 14.8:1 on paper |
+| `--ink-2` | `#4A5366` | Secondary text | 7.1:1 |
+| `--ink-3` | `#5C6578` | Tertiary text | 5.4:1 |
 
-Used only in timelines, charts and badges. Always paired with a visible text label.
+### Activity colours
 
-| Activity | Background | Text | WCAG AA check |
-|----------|-----------|------|---------------|
-| WALKING | `#4ADE80` | `#000000` | 8.1:1 ✓ |
-| WALKING_UPSTAIRS | `#60A5FA` | `#000000` | 5.5:1 ✓ |
-| WALKING_DOWNSTAIRS | `#3B82F6` | `#ffffff` | 4.9:1 ✓ |
-| SITTING | `#FBBF24` | `#000000` | 10.0:1 ✓ |
-| STANDING | `#FB923C` | `#000000` | 5.4:1 ✓ |
-| LAYING | `#F87171` | `#000000` | 4.5:1 ✓ |
+Movement is cool, stillness is warm or plum. Each activity also has a pictogram and a text label, so colour is
+never the only signal.
 
-Colours are distinguishable for the most common types of colour-blindness (deuteranopia, protanopia, tritanopia) when paired with text labels.
+| Activity | Fill | Label colour | Label contrast |
+|---|---|---|---|
+| Walking | `#37C2BB` | ink | 7.3:1 |
+| Walking upstairs | `#95D3FC` | ink | 9.9:1 |
+| Walking downstairs | `#323EA5` | white | 8.9:1 |
+| Sitting | `#EF853B` | ink | 6.1:1 |
+| Standing | `#F2D855` | ink | 11.2:1 |
+| Lying | `#77296A` | white | 9.1:1 |
 
----
+Colour-blind check (OKLab distance between the closest pair, walking vs upstairs): 0.103 protan, 0.108 deutan,
+0.092 tritan, 0.132 normal. Distinct enough with labels and pictograms; do not use colour alone.
+Messages use `--err`, `--warn` and `--ok` text on tinted backgrounds, always with an icon and words.
 
-## Typography Scale
+## Type
 
-| Role | Family | Weight | Size | Line-height |
-|------|--------|--------|------|-------------|
-| H1 — Activity name | Inter | 900 | `clamp(2.5rem, 8vw, 6rem)` | 0.95 |
-| H2 — Page title | Inter | 700 | `2rem` | 1.1 |
-| H3 — Card heading | Inter | 600 | `1.25rem` | 1.3 |
-| Eyebrow / section label | Inter | 500 | `0.75rem` | 1.0 |
-| Body | Inter | 400 | `1rem` (16px min) | 1.6 |
-| Stat number | Inter | 700 | `2rem` | 1.0 |
-| Caption | Inter | 400 | `0.875rem` | 1.4 |
+One family, **Public Sans** (variable 400 to 800, Google Fonts), tabular figures for every number.
+Fixed rem scale: 13, 15, 16, 19, 24, 36 px, plus one fluid display size (`clamp(3rem, 8vw, 6rem)`) used only
+by the Overview headline, the reel and the live board. No uppercase tracked labels anywhere; section titles are
+sentence case.
 
-Font loaded via Google Fonts (`display=swap`). Fallback: `system-ui, sans-serif`.
+## Layout
 
----
+Wide layout, content capped at 76rem. Every working page is **controls on the left, result on the right**
+(`rail_mark()` turns the first column into the control panel); on narrow screens the columns stack and tape
+labels collapse to pictograms. Phone recording, Live and Video share this shape.
 
-## Spacing Scale
+## Components (`app/components/ui.py`)
 
-| Token | Value | Typical use |
-|-------|-------|-------------|
-| `--sp-xs` | 4px | Inline gap |
-| `--sp-sm` | 8px | Tight vertical stack |
-| `--sp-md` | 16px | Default component gap |
-| `--sp-lg` | 24px | Section padding |
-| `--sp-xl` | 48px | Between major sections |
-| `--sp-2xl` | 80px | Hero top-padding, footer margin |
+| Function | Renders |
+|---|---|
+| `load_css()` | Injects `theme.css` (call once per page) |
+| `page_header`, `section`, `headline`, `footer` | Titles and the honest accuracy note |
+| `tape(runs, step=, total=)` | Proportional timeline, label inside each block |
+| `ledger(rows)` | Time per activity; doubles as the legend |
+| `board(key, confidence=, chip=, pop=)` | Live panel; `key=None` is idle and never names an activity |
+| `facts(pairs)`, `notice(text, kind)`, `empty_state`, `setup_steps`, `confidence_chart` | Supporting pieces |
+| `summarize(share)` | "Mostly walking" only when it really dominates (60%+), otherwise "A mix of six activities" |
+| `act(key)` | One registry for phone keys (`WALKING_UPSTAIRS`) and camera keys (`upstairs`) |
 
----
+Components emit class names; colours are CSS variables, so a colour change is one edit.
+Use `st.markdown(..., unsafe_allow_html=True)` for any HTML with an SVG (`st.html` strips `<svg>`), keep each
+block on one line, and never put a literal `<` followed by a letter in `theme.css` (`st.html` drops the whole
+style block; write it as the CSS escape `\3c`).
 
-## Radius & Shadow
+## Motion
 
-| Token | Value |
-|-------|-------|
-| `--radius-sm` | 8px |
-| `--radius-md` | 12px |
-| `--radius-pill` | 999px |
-| Shadow | None — flat design with border-only cards |
+Purposeful and short, CSS only, all of it off under `prefers-reduced-motion`:
 
----
+- Kinetic words (`kinetic()`): each word rises out of a mask on load.
+- Overview reel: six colour wipes, one per activity, looping every 18 s, paused on hover.
+- Overview scan figure: one sweep reveals the real acceleration trace, the colour bands and the labelled
+  tape together while a scan line crosses; count-up numbers use a registered `--n` property.
+- Tape blocks draw left to right; ledger bars fill; the live board name re-plays its entrance only when the
+  activity changes (`pop` flips between two identical keyframe names).
+- State only elsewhere: button and row hovers, a pulsing dot on live chips.
 
-## Component Library (`app/components/ui.py`)
-
-| Function | Renders | Key args |
-|----------|---------|---------|
-| `load_css()` | Injects Inter + `theme.css` | — |
-| `activity_hero(name, conf, duration, model)` | Full-width dark card, huge H1 | str, float, str, str |
-| `status_chip(label, variant)` | Pill chip | `replay` / `connected` / `idle` / `error` |
-| `section_label(text)` | Small-caps eyebrow | str |
-| `timeline_bar(runs, total)` | Horizontal coloured bar + legend | list of dicts, int |
-| `activity_card(pairs, sub)` | Dark card with label/value rows | list of tuples |
-| `empty_state(icon, heading, body)` | Centred empty-state block | str, str, str |
-| `info_card(text)` | Dark info card with accent left-border | str |
-| `footer()` | Model limitations note | — |
-| `setup_steps(steps)` | Numbered step list in dark card | list of str |
-| `mmss(sec)` | Format seconds → `mm:ss` | float |
-
----
+Reveals always start from the visible default (`animation-fill-mode: backwards`), so a paused or headless
+renderer still shows complete content.
 
 ## Accessibility
 
-| Requirement | Implementation |
-|-------------|---------------|
-| Body contrast ≥ 4.5:1 | `#F5F5F5` on `#0B0B0C` → 17.5:1 |
-| Large-text contrast ≥ 3:1 | H1 on card `#17181A` → 14.1:1 |
-| All activity badge pairs ≥ 4.5:1 | Verified in table above |
-| Body text ≥ 16px | `1rem` base, enforced in CSS reset |
-| Tap targets ≥ 44 × 44 px | `min-height: 44px` on all buttons |
-| Focus ring | `:focus-visible` with 2px `--clr-accent` outline |
-| `prefers-reduced-motion` | Fade transition guarded by media query |
-| Alt text on images | `alt` present on all `<img>` tags |
-| Semantic headings | `<h1>`, `<h2>` used in HTML injections |
+Body text 16 px, never below 4.5:1. Focus ring 2.5 px ink on every control. Buttons are at least 44 px tall and
+have explicit disabled styles. Timelines carry an `aria-label` that reads the whole sequence; the live board is
+`aria-live="polite"`. The disabled state of a button is never the same as its active state.
 
----
+## Do not
 
-## Responsive Breakpoints
+No side-stripe borders, gradient text, glass cards, neon on black, tracked uppercase eyebrows, identical card
+grids, emoji as icons, or hex values outside the two token files. Do not claim "Mostly X" unless X dominates.
 
-| Breakpoint | Behaviour |
-|------------|-----------|
-| Default (mobile-first, ≥ 390px) | Single column; full-width cards |
-| ≥ 760px | Two-column layout on Video page |
-| ≥ 1080px | Content max-width `960px`, centred |
-
----
-
-## File Map
+## File map
 
 ```
-activity-recognition/
-├── .streamlit/
-│   └── config.toml          ← dark theme primaryColor / backgroundColor
-├── app/
-│   ├── components/
-│   │   ├── __init__.py
-│   │   └── ui.py            ← all shared component helpers
-│   ├── pages/
-│   │   ├── 1_Live.py        ← redesigned
-│   │   └── 2_Video.py       ← redesigned
-│   ├── styles/
-│   │   └── theme.css        ← single source of CSS tokens and component styles
-│   └── streamlit_app.py     ← redesigned main page
-└── docs/
-    └── ui_redesign_design.md ← full design specification
+.streamlit/config.toml          Streamlit theme (light, ink primary)
+app/streamlit_app.py            Navigation: Overview, Phone recording, Live, Video
+app/overview.py                 Landing page: hero, reel, scan figure, entry points
+app/home.py                     Phone recording
+app/pages/1_Live.py, 2_Video.py Live and Video
+app/components/ui.py            Shared components and the activity registry
+app/styles/theme.css            Tokens, components, motion (single stylesheet)
+tests/test_ui_helpers.py        Style registry and summary-line checks
 ```
-
----
-
-## Out of Scope
-
-- `src/`, `config/`, `models/`, `notebooks/`, `data/` — no changes
-- Dark/light mode toggle (always dark)
-- New pip dependencies
-- Server performance or caching
-- Authentication
