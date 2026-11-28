@@ -14,7 +14,7 @@ import yaml
 
 sys.path.insert(0, "src")
 from inference import smooth
-from video_pose import MODEL, predict_video
+from video_pose import MODEL, predict_live, predict_video
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from components.ui import (
@@ -69,6 +69,89 @@ def load_bundle():
     return joblib.load(MODEL)
 
 
+cfg = yaml.safe_load(open("config/config.yaml"))
+
+
+def run_live(bundle, cfg):
+    """Webcam -> pose per frame -> label from the last 2 s, refreshed every 0.5 s.
+    Needs the app to run on the computer the camera is plugged into."""
+    import time
+    import cv2
+    import mediapipe as mp
+    import numpy as np
+    from mediapipe.tasks.python import BaseOptions, vision
+
+    cam = st.number_input("Camera number", 0, 5, 0, help="0 is usually the built-in webcam.")
+    c1, c2 = st.columns(2)
+    if c1.button("Start", type="primary", use_container_width=True):
+        st.session_state.cam_on = True
+    if c2.button("Stop", use_container_width=True):
+        st.session_state.cam_on = False
+    if not st.session_state.get("cam_on"):
+        empty_state(
+            icon="[camera]",
+            heading="Camera off",
+            body=(
+                "Stand 2 to 3 m from the camera with your whole body in frame, then press Start. "
+                "The label appears after 2 s and updates twice a second."
+            ),
+        )
+        return
+
+    label, frame_box = st.empty(), st.empty()
+    cap = cv2.VideoCapture(int(cam))
+    if not cap.isOpened():
+        st.session_state.cam_on = False
+        st.error(f"Can't open camera {cam}. Try another number, or allow camera access for the terminal.")
+        return
+    opts = vision.PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=cfg["video"]["pose_model"]),
+        running_mode=vision.RunningMode.VIDEO,
+    )
+    times, kps, t0, last, ms = [], [], time.time(), -1.0, -1
+    try:  # Stop reruns the script, which ends this loop; finally frees the camera
+        with vision.PoseLandmarker.create_from_options(opts) as lm:
+            while st.session_state.get("cam_on"):
+                ok, bgr = cap.read()
+                if not ok:
+                    st.session_state.cam_on = False
+                    st.error("The camera stopped sending frames. Press Start to try again.")
+                    break
+                bgr = cv2.resize(bgr, (640, int(bgr.shape[0] * 640 / bgr.shape[1])))
+                rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                t = time.time() - t0
+                ms = max(int(t * 1000), ms + 1)  # MediaPipe needs strictly increasing timestamps
+                res = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb), ms)
+                kp = np.full((33, 4), np.nan)
+                if res.pose_landmarks:
+                    kp = np.array([[p.x, p.y, p.z, p.visibility] for p in res.pose_landmarks[0]])
+                    h, w = rgb.shape[:2]
+                    for x, y in kp[:, :2]:
+                        cv2.circle(rgb, (int(x * w), int(y * h)), 4, (74, 222, 128), -1)
+                times.append(t)
+                kps.append(kp)
+                while times[0] < t - 3:  # keep 3 s; the model reads the last 2 s
+                    times.pop(0)
+                    kps.pop(0)
+                if t - last >= 0.5:
+                    last = t
+                    r = predict_live(times, np.array(kps), bundle, cfg)
+                    with label.container():
+                        if r:
+                            activity_hero(r[0].title(), r[1], model="Random Forest · live camera")
+                        else:
+                            st.info("Looking for a whole body in frame for 2 s…")
+                frame_box.image(rgb, channels="RGB", width="stretch")
+    finally:
+        cap.release()
+
+
+mode = st.radio("Source", ["Upload a video", "Live camera"], horizontal=True)
+if mode == "Live camera":
+    run_live(load_bundle(), cfg)
+    footer()
+    st.stop()
+
 # ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------
@@ -92,7 +175,6 @@ if not up:
 # ---------------------------------------------------------------------------
 # Inference (cached by filename + size)
 # ---------------------------------------------------------------------------
-cfg = yaml.safe_load(open("config/config.yaml"))
 key = (up.name, up.size)
 
 if st.session_state.get("video_key") != key:
