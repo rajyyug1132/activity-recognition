@@ -16,6 +16,7 @@ class FakePhone(PhyphoxSource):
 
     def _call(self, path):
         assert path.startswith("/get?")
+        assert "|" not in path, "a real phyphox server returns 400 for an unencoded |"
         out = {}
         for name, v in parse_qsl(path[5:]):
             thr, _, ref = v.partition("|")

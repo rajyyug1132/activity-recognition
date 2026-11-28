@@ -57,7 +57,7 @@ class PhyphoxSource:
         ta, tg = f"{self.t_acc:.6f}", f"{self.t_gyr:.6f}"
         q = "&".join([f"{b}={ta}|acc_time" for b in ACC] + [f"acc_time={ta}"]
                      + [f"{b}={tg}|gyr_time" for b in GYR] + [f"gyr_time={tg}"])
-        buf = self._call("/get?" + q)["buffer"]
+        buf = self._call("/get?" + q.replace("|", "%7C"))["buffer"]  # phyphox answers 400 to a raw |
         a, g = _cols(buf, ["acc_time"] + ACC), _cols(buf, ["gyr_time"] + GYR)
         if len(g):
             self.t_gyr = g[-1, 0]
