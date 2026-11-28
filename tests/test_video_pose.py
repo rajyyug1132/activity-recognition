@@ -85,3 +85,22 @@ def test_predict_live():
     assert act in ("walking", "standing") and 0.5 <= conf <= 1
     kp[-40:] = np.nan                                                  # person left the frame
     assert predict_live(t30, kp, bundle, cfg) is None
+
+
+def test_stairs_become_up_or_down():
+    from video_pose import _classify
+
+    class Fixed:  # fake model: always the given probabilities
+        def __init__(self, p): self.p = np.array(p)
+        def predict_proba(self, X): return np.tile(self.p, (len(X), 1))
+
+    F = np.zeros((2, 23))
+    base = {"model": Fixed([0.1, 0.1, 0.8]), "classes": ["walking", "standing", "stairs"]}
+    act, conf = _classify(F, base)                       # old bundle: unchanged
+    assert list(act) == ["stairs", "stairs"] and np.allclose(conf, 0.8)
+    base["direction"] = {"model": Fixed([0.25, 0.75]), "classes": ["upstairs", "downstairs"]}
+    act, conf = _classify(F, base)
+    assert list(act) == ["downstairs", "downstairs"] and np.allclose(conf, 0.8 * 0.75)
+    base["model"] = Fixed([0.7, 0.2, 0.1])               # not stairs: direction model not used
+    act, conf = _classify(F, base)
+    assert list(act) == ["walking", "walking"] and np.allclose(conf, 0.7)

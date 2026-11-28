@@ -190,6 +190,21 @@ def feature_windows(X, fps=25) -> np.ndarray:
 MODEL = os.path.join(ROOT, "models", "video_rf.joblib")
 
 
+def _classify(F, bundle):
+    """Features [N, 23] -> (activity names, confidence). If the bundle has a "direction" model
+    (notebooks/09_stairs_direction.py), windows called stairs become upstairs / downstairs and their
+    confidence becomes P(stairs) * P(direction)."""
+    p = bundle["model"].predict_proba(F)
+    act = np.array([bundle["classes"][i] for i in p.argmax(1)], dtype=object)
+    conf = p.max(1)
+    d, m = bundle.get("direction"), act == "stairs"
+    if d and m.any():
+        q = d["model"].predict_proba(F[m])
+        act[m] = [d["classes"][i] for i in q.argmax(1)]
+        conf[m] = conf[m] * q.max(1)
+    return act, conf
+
+
 def predict_video(video_path, bundle, cfg) -> "pd.DataFrame":
     """One row per 2 s window: start_time (s), activity, confidence. `bundle` = joblib dict from notebook 08."""
     import pandas as pd
@@ -200,10 +215,9 @@ def predict_video(video_path, bundle, cfg) -> "pd.DataFrame":
     starts = [s for s in range(0, len(flat) - win + 1, step) if not np.isnan(flat[s:s + win]).any()]
     if not starts:
         return pd.DataFrame(columns=["start_time", "activity", "confidence"])
-    p = bundle["model"].predict_proba(feature_windows(np.stack([flat[s:s + win] for s in starts]), v["fps"]))
-    return pd.DataFrame({"start_time": np.array(starts) / v["fps"],
-                         "activity": [bundle["classes"][i] for i in p.argmax(1)],
-                         "confidence": p.max(1).round(3)})
+    act, conf = _classify(feature_windows(np.stack([flat[s:s + win] for s in starts]), v["fps"]), bundle)
+    return pd.DataFrame({"start_time": np.array(starts) / v["fps"], "activity": list(act),
+                         "confidence": conf.round(3)})
 
 
 def predict_live(times, kp, bundle, cfg):
@@ -223,5 +237,5 @@ def predict_live(times, kp, bundle, cfg):
     w = normalize_pose(rs.reshape(win, 33, -1), v["max_gap"]).reshape(win, -1)
     if np.isnan(w).any():
         return None
-    p = bundle["model"].predict_proba(feature_windows(w[None], fps))[0]
-    return bundle["classes"][p.argmax()], float(p.max())
+    act, conf = _classify(feature_windows(w[None], fps), bundle)
+    return act[0], float(conf[0])

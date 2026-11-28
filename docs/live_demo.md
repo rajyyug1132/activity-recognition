@@ -34,7 +34,7 @@ UCI's vertical axis is `acc_x`, but the phone's vertical axis is its `y`. `src/l
 
 ## Without a phone: replay mode
 
-Choose **Replay sample** and press **Start**. The page plays `data/sample_synthetic.csv` back in real time, looping, through the same buffer → window → model path. Use this to rehearse the demo or to show the page when Wi-Fi fails. The replay CSV is not included in the repository and no script generates it; provide a compatible CSV at that path. If it is missing, the page explains why replay is unavailable and leaves the phone source usable.
+Choose **Demo recording (no phone)** and press **Start**. The page plays `app/demo/uci_test_person_12.csv` back in real time, looping, through the same buffer → window → model path: 2 minutes of a real UCI HAR test person the model never trained on, doing all six activities. Use it to rehearse the demo or when Wi-Fi fails.
 
 ## How it works
 
@@ -50,3 +50,6 @@ Choose **Replay sample** and press **Start**. The page plays `data/sample_synthe
 | "Lost contact with the phone" | Wi-Fi dropped. The page keeps retrying every second. |
 | Stuck on "Collecting…" | The measurement isn't running on the phone. Press ▶ in phyphox, or Stop and Start on the page. |
 | Always "Lying" or always one wrong class | Axes are mapped wrong. Do the axis check above. |
+| "wrong experiment open in phyphox" | A built-in experiment is open. Open **HAR live (acc + gyro)** and switch remote access on inside it: phyphox turns remote access off when you change experiment. |
+| Connection refused, but the phone answers ping | Phyphox is not in the foreground, or the screen locked. Keep phyphox on screen and set a long screen timeout. |
+| Odd labels with the phone flat on a table | Expected: no UCI activity has the phone lying flat. Wear it upright at the waist. |

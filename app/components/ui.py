@@ -77,6 +77,7 @@ def activity_hero(
     confidence: float | None = None,
     duration: str | None = None,
     model: str | None = None,
+    eyebrow: str = "CURRENT ACTIVITY",
 ) -> None:
     """Render the full-width activity hero card.
 
@@ -125,7 +126,7 @@ def activity_hero(
     # line, which ends Markdown's HTML block and shows the indented rest as a code block.
     st.markdown(
         f'<div class="activity-hero" style="{act_style}">{model_chip}'
-        f'<p class="eyebrow">CURRENT ACTIVITY</p>'
+        f'<p class="eyebrow">{html.escape(eyebrow)}</p>'
         f'<h1 class="activity-name">{escaped_display}</h1>{sub_line}</div>',
         unsafe_allow_html=True,
     )
@@ -249,25 +250,20 @@ def activity_card(pairs: list[tuple[str, str]], sub: str | None = None) -> None:
 # empty_state
 # ---------------------------------------------------------------------------
 
-def empty_state(icon: str, heading: str, body: str) -> None:
-    """Render a centred empty-state block.
-
-    Args:
-        icon:    Text icon or short symbol (e.g. ``"+"``).
-        heading: Short heading (e.g. ``"No recording yet"``).
-        body:    One-to-two sentence explanation.
-    """
-    safe_icon = html.escape(icon)
-    safe_heading = html.escape(heading)
-    safe_body = html.escape(body)
+def page_header(title: str, subtitle: str) -> None:
+    """Page title and one sentence on what the page is for."""
     st.markdown(
-        f"""
-        <div class="empty-state">
-            <span class="empty-icon">{safe_icon}</span>
-            <p class="empty-heading">{safe_heading}</p>
-            <p class="empty-body">{safe_body}</p>
-        </div>
-        """,
+        f'<div class="page-header"><h1>{html.escape(title)}</h1>'
+        f'<p class="page-sub">{html.escape(subtitle)}</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def empty_state(icon: str, heading: str, body: str) -> None:
+    """Render a centred empty-state block. `icon` is unused (kept for callers); headings say enough."""
+    st.markdown(
+        f'<div class="empty-state"><p class="empty-heading">{html.escape(heading)}</p>'
+        f'<p class="empty-body">{html.escape(body)}</p></div>',
         unsafe_allow_html=True,
     )
 
@@ -289,15 +285,13 @@ def info_card(text: str) -> None:
 # footer
 # ---------------------------------------------------------------------------
 
-def footer() -> None:
-    """Render the standard app footer with model limitations note."""
-    st.markdown(
-        '<div class="app-footer">'
-        "Model accuracy: 91% on the UCI HAR benchmark dataset. "
-        "Real-world results vary with phone placement and sensor calibration."
-        "</div>",
-        unsafe_allow_html=True,
-    )
+PHONE_NOTE = ("Phone model: 91% accuracy on 9 people it never saw (UCI HAR). "
+              "Real-world results vary with phone placement and sensor calibration.")
+
+
+def footer(note: str = PHONE_NOTE) -> None:
+    """Footer with the accuracy note for the model on this page."""
+    st.markdown(f'<div class="app-footer">{html.escape(note)}</div>', unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------

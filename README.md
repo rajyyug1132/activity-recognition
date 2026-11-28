@@ -24,7 +24,9 @@ Upload a phone recording (CSV) and get a timeline of what you were doing. The ap
 
 <img src="reports/figures/app_mobile.png" alt="Mobile layout" width="240">
 
-**Live page:** classifies a phone's sensors as they stream over Wi-Fi from the Phyphox app, updating once a second. A replay mode plays `data/sample_synthetic.csv` in real time for demos without a phone. Setup: [docs/live_demo.md](docs/live_demo.md). The phone path is not yet tested on a real phone.
+**Live page:** classifies a phone's sensors as they stream over Wi-Fi from the Phyphox app, updating once a second. A **Demo recording** mode plays `app/demo/uci_test_person_12.csv` in real time for demos without a phone. Setup: [docs/live_demo.md](docs/live_demo.md). Tested on a real phone on 28 Nov: data arrives at about 55 samples/s and the first label appears after 3 s.
+
+**Sample recording:** `app/demo/uci_test_person_12.csv` is 2 minutes of UCI HAR test person 12 (walking, downstairs, upstairs, sitting, standing, lying), a person the model never trained on, chosen as the median of the 9 test people by accuracy. The app labels 96% of its windows correctly. The home page's *Try a sample recording* button loads it. UCI HAR: Reyes-Ortiz et al., CC BY 4.0.
 
 ## Results
 
@@ -77,7 +79,7 @@ The CNN converts to TFLite with `src/export.py`: **410 KB** with 8-bit weights (
 
 Our own recordings are phone **videos** of 5 people (p1-p5) walking, standing and using stairs, with no sensor data, so they cannot train the phone model. Instead a second pipeline reads the video: `src/video_pose.py` extracts 33 body landmarks per frame with MediaPipe Pose, normalises them (centred on the hips, scaled by torso length), cuts 2 s windows, and a model classifies each window. Videos are not in git (`*.mp4` is ignored); keypoints and labels live in `data/video/`.
 
-Classes: **walking, standing, stairs** (up and down merged, because the direction cannot be told from side views). No sitting or lying clips exist, so these scores **cannot be compared** with the phone model's 6-class numbers. 493 windows in total; 1 clip left out (a crouch/jump). p5 has a single walking clip, so p5 is used for training only and never as the held-out person.
+Classes: **walking, standing, stairs**, then a second model splits stairs into **up and down** (see below). No sitting or lying clips exist, so these scores **cannot be compared** with the phone model's 6-class numbers. 493 windows in total; 1 clip left out (a crouch/jump). p5 has a single walking clip, so p5 is used for training only and never as the held-out person.
 
 Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other four, 4 times). Two baselines: random guessing scores about 0.33 macro F1; always answering "standing" (the largest class) scores 0.39 accuracy but only 0.18 macro F1. Accuracy alone flatters weak models here, so macro F1 is the main number.
 
@@ -95,7 +97,9 @@ Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other f
 - **The app's model has no held-out score of its own.** It is trained on all 5 people, so 0.63 is the leave-one-person-out estimate for the same recipe, not a test of that exact model.
 - **Don't quote the saved CNN's validation accuracy.** `models/video_cnn.keras` (notebook 07, not used by the app) was early-stopped on a random 15% of windows. Windows overlap by 50%, so that validation set shares frames with training, and its 0.87 validation accuracy is inflated.
 
-**Video page** (`app/pages/2_Video.py`): upload a phone video of one person and get a walking / standing / stairs timeline next to the video. It uses the Random Forest on hand-built features, trained on all 5 people (`models/video_rf.joblib`, made by notebook 08, not in git). The page also needs the MediaPipe pose model at `models/pose_landmarker_full.task` ([download](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task)). Processing takes about as long as the video. A **Live camera** option on the same page reads the computer's webcam and updates the label twice a second from the last 2 s (the app must run on the computer the camera is plugged into).
+**Stairs direction** (`notebooks/09_stairs_direction.py`): a second Random Forest says up or down for windows the 3-class model calls stairs. Labels were set by eye from the video frames. On a held-out person it picks the right direction 82% of the time, and 77% on side views, where walking toward the camera cannot give the answer away. Shuffled labels score 50%. Whole pipeline, 4 classes: macro F1 0.50 ± 0.12 (random 0.25). Details: [reports/results.md](reports/results.md).
+
+**Video page** (`app/pages/2_Video.py`): upload a phone video of one person and get a walking / standing / upstairs / downstairs timeline next to the video. It uses the Random Forest on hand-built features, trained on all 5 people (`models/video_rf.joblib`, made by notebook 08, not in git). The page also needs the MediaPipe pose model at `models/pose_landmarker_full.task` ([download](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task)). Processing takes about as long as the video. A **Live camera** option on the same page reads the computer's webcam and updates the label twice a second from the last 2 s (the app must run on the computer the camera is plugged into).
 
 ![Camera model confusion matrices](reports/figures/video_confusion.png)
 ![Hand-built features](reports/figures/video_features.png)

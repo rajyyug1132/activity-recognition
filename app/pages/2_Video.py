@@ -24,16 +24,18 @@ from components.ui import (
     info_card,
     load_css,
     mmss,
+    page_header,
     section_label,
 )
 
-# Video activity palette — subset of the shared palette (walking, standing, stairs)
-# Stairs maps to WALKING_UPSTAIRS colour for visual consistency
+# Same colours as the phone page. "stairs" only appears with a model saved before notebook 09.
 STYLE = {
-    "walking":  ("#4ADE80", "#000000", "Walking"),
-    "standing": ("#FB923C", "#000000", "Standing"),
-    "stairs":   ("#60A5FA", "#000000", "Stairs"),
+    "walking":    ("#4ADE80", "#000000", "Walking"),
+    "standing":   ("#FB923C", "#000000", "Standing"),
+    "upstairs":   ("#60A5FA", "#000000", "Walking upstairs"),
+    "downstairs": ("#3B82F6", "#ffffff", "Walking downstairs"),
 }
+OLD_STAIRS = ("#60A5FA", "#000000", "Stairs")
 
 st.set_page_config(
     page_title="Video · Activity Recognition",
@@ -42,15 +44,21 @@ st.set_page_config(
 )
 load_css()
 
-st.title("Video")
-
-# Experimental note as info card
-info_card(
-    "Experimental. Tells walking, standing and stairs apart from a phone video "
-    "of one person. Trained on 5 people; on unseen people it gets about 6 windows "
-    "in 10 right (macro F1 0.63). No sitting or lying. "
-    "The video is processed on this computer and not kept."
+VIDEO_NOTE = ("Camera model: on a person it never saw, macro F1 0.63 for walking / standing / stairs; "
+              "stairs direction right about 8 times in 10.")
+page_header(
+    "Activity from video",
+    "Upload a video of one person, or use your webcam, to see when they walk, stand, "
+    "or walk up or down stairs.",
 )
+with st.expander("How accurate is it? (experimental)"):
+    st.markdown(
+        "- Trained on videos of **5 people**. Tested on each person after training on the other four.\n"
+        "- Walking / standing / stairs: **macro F1 0.63** (random guessing: 0.33).\n"
+        "- Stairs direction, up or down: right **82%** of the time (77% on side views, "
+        "where facing the camera can't give it away). Shuffled labels score 50%.\n"
+        "- No sitting or lying. The video is processed on this computer and not kept."
+    )
 
 # ---------------------------------------------------------------------------
 # Model availability check
@@ -138,7 +146,7 @@ def run_live(bundle, cfg):
                     r = predict_live(times, np.array(kps), bundle, cfg)
                     with label.container():
                         if r:
-                            activity_hero(r[0].title(), r[1], model="Random Forest · live camera")
+                            activity_hero(STYLE.get(r[0], OLD_STAIRS)[2], r[1], model="Random Forest · live camera")
                         else:
                             st.info("Looking for a whole body in frame for 2 s…")
                 frame_box.image(rgb, channels="RGB", width="stretch")
@@ -149,7 +157,7 @@ def run_live(bundle, cfg):
 mode = st.radio("Source", ["Upload a video", "Live camera"], horizontal=True)
 if mode == "Live camera":
     run_live(load_bundle(), cfg)
-    footer()
+    footer(VIDEO_NOTE)
     st.stop()
 
 # ---------------------------------------------------------------------------
@@ -166,10 +174,10 @@ if not up:
         heading="No video yet",
         body=(
             "Upload an MP4 or MOV recorded from a phone. "
-            "Keep the whole body in frame. Activities: walking, standing, stairs."
+            "Keep the whole body in frame. Activities: walking, standing, walking up or down stairs."
         ),
     )
-    footer()
+    footer(VIDEO_NOTE)
     st.stop()
 
 # ---------------------------------------------------------------------------
@@ -199,11 +207,11 @@ if pred.empty:
         "No full 2 s stretch with a person in frame. "
         "Use a longer clip with the whole body visible."
     )
-    footer()
+    footer(VIDEO_NOTE)
     st.stop()
 
-# Smoothing (sidebar toggle, same as main page)
-if st.sidebar.checkbox(
+# Smoothing toggle, same as the phone page
+if st.checkbox(
     "Smooth predictions",
     value=True,
     help=f"Majority vote over {cfg['smooth_window']} windows removes single-window flicker.",
@@ -220,6 +228,8 @@ share = pred["activity"].value_counts()
 main = share.idxmax()
 main_conf = float(pred.loc[pred["activity"] == main, "confidence"].mean())
 
+if "stairs" in share:  # model saved before notebook 09: no up/down
+    STYLE["stairs"] = OLD_STAIRS
 share = share.reindex(STYLE, fill_value=0)
 video_col, analysis_col = st.columns([1, 1], gap="large")
 
@@ -229,10 +239,11 @@ with video_col:
 
 with analysis_col:
     activity_hero(
-        activity_name=main.title(),
+        activity_name=STYLE[main][2],
         confidence=main_conf,
         duration=f"{mmss(dur)} video",
         model="Random Forest · pose features",
+        eyebrow="MOST OF THE VIDEO",
     )
 
     section_label("Activity Timeline")
@@ -280,7 +291,7 @@ with analysis_col:
     )
 
     section_label("Activity Breakdown")
-    breakdown_cols = st.columns(3)
+    breakdown_cols = st.columns(2)
     for i, (activity, count) in enumerate(share.items()):
         _, _, display_name = STYLE[activity]
         pct = count / len(pred)
@@ -317,4 +328,4 @@ with st.expander("Per-window predictions"):
         "text/csv",
     )
 
-footer()
+footer(VIDEO_NOTE)

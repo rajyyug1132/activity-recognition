@@ -83,6 +83,8 @@ Our own recordings are phone **videos** of 5 people with no sensor data. A separ
 - The hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.04, which is more than any real effect we can measure with 4 test people, so the features cannot be tuned yet.
 - The app's Video page uses a Random Forest trained on all 5 people. It has no held-out score of its own. The 0.63 above is the leave-one-person-out estimate for the same recipe.
 
+**Stairs direction.** A second Random Forest splits stairs into up and down (notebook `09_stairs_direction.py`). On a held-out person it picks the right direction 82% of the time (77% on side views, where facing the camera cannot give it away), against 50% with shuffled labels. Labels were set by eye from the video frames. Details and caveats: `reports/results.md`.
+
 **What would help most:** more people, and the same camera angle for everyone.
 
 ## 6. Limitation: fine-tuning on our own data was not possible

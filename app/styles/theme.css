@@ -533,3 +533,15 @@ video { border-radius: var(--radius-md); }
     height: 20px;
   }
 }
+
+/* ---------- Clarity pass ---------- */
+/* Show Streamlit's header again: the top navigation bar lives in it */
+.stApp > header { display: flex !important; background: var(--clr-bg, #0B0B0C) !important; border-bottom: 1px solid var(--clr-border); }
+/* The global span rule above shrank headings to body size */
+.stApp h1 span, .stApp h2 span, .stApp h3 span, .page-header h1 * { font-size: inherit !important; line-height: inherit !important; }
+.stApp .page-header h1 { font-size: 2.1rem !important; }
+.page-header { margin: 0 0 var(--sp-lg); }
+.page-header h1 { font-size: 2rem !important; font-weight: 700; margin: 0 0 6px; padding: 0; line-height: 1.2; }
+.page-header .page-sub { color: var(--clr-text-secondary) !important; font-size: 1.05rem !important; margin: 0; max-width: 60ch; }
+.empty-state .empty-body { max-width: 52ch; font-size: 0.95rem !important; }
+.app-footer { font-style: normal; font-size: 0.8rem !important; }

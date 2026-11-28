@@ -43,4 +43,16 @@ Leave-one-person-out over p1-p4 (493 windows of 2 s in total). p5 has one walkin
 
 ± is the standard deviation over the 4 held-out people. Ablation on the hand-built features (Random Forest, macro F1): all 23 = 0.627, without `torso_tilt` = 0.585, without `torso_tilt` and `knee_y_mean` = 0.660. These differences are within noise at 4 test people. The 120 fps clips (A (4), B (8), C (7)) were checked: walking cadence 0.63-0.74 Hz, same as 30 fps clips (0.66-0.85 Hz), so they are not slow motion and are kept. The first run (before p5's clip was added) gave the same picture: CNN 0.36, raw RF 0.63, features RF 0.63.
 
+## Camera pipeline: stairs direction (`notebooks/09_stairs_direction.py`)
+
+A second stage on top of the 3-class model: for windows called stairs, a Random Forest with the same settings says up or down. The 3-class model is unchanged. Direction labels were set by eye from video frames, never from a model's output, and were not checked by a second person. Five clips were filmed from the top of the flight, so walking toward the camera is up. Three side-view clips were judged by which step the front foot lands on. A (5) and D (6) are side views whose direction could not be told, and A (3) is too short: all three are left out. 82 windows remain (46 up, 36 down), and each of p1-p4 has both directions.
+
+| Date | Test (leave one person out) | Direction right | Chance | Ran by |
+|---|---|---|---|---|
+| 2026-11-28 | all stairs windows | 0.82 of 82 (p1 0.74, p2 0.80, p3 0.93, p4 1.00) | 0.50 ± 0.06 with training labels shuffled | Yyug |
+| 2026-11-28 | side views only | 0.77 of 35 | 0.50 | Yyug |
+| 2026-11-28 | front/back views only | 0.85 of 47 | 0.50 | Yyug |
+
+Whole pipeline, 4 classes (walking, standing, upstairs, downstairs): macro F1 0.50 ± 0.12 (random 0.25). A single 4-class Random Forest scored 0.48 ± 0.13 and called more stairs windows walking, so the app uses the two stages. In the front/back clips "up" always means "toward the camera", so a model could learn that instead of direction. The side-view score rules this out, but it rests on 35 windows from 3 clips.
+
 **Caveats.** (1) 0.63 is slightly optimistic: the 23 features, the RF and logistic-regression settings and the CNN input variant were all chosen while looking at the same 4 test people. (2) The app's Random Forest is trained on all 5 people and has no held-out score; 0.63 is the leave-one-person-out estimate of the same recipe. (3) The saved `models/video_cnn.keras` was early-stopped on a random 15% of windows, which overlap 50% with training windows, so its 0.87 validation accuracy is inflated and must not be quoted. It is not used by the app.
