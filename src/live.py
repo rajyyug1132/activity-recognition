@@ -47,7 +47,12 @@ class PhyphoxSource:
             return json.loads(r.read())
 
     def start(self):
-        self._call("/control?cmd=clear")
+        # No cmd=clear: on a real phone it shut down phyphox's web server. Skip old samples by
+        # starting the thresholds at the newest timestamps already in the buffers.
+        buf = self._call("/get?acc_time&gyr_time")["buffer"]
+        last = lambda b: (buf.get(b, {}).get("buffer") or [None])[-1]
+        self.t_acc = last("acc_time") if last("acc_time") is not None else -1.0
+        self.t_gyr = last("gyr_time") if last("gyr_time") is not None else -1.0
         self._call("/control?cmd=start")
 
     def stop(self):
