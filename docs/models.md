@@ -83,6 +83,10 @@ Our own recordings are phone **videos** of 5 people with no sensor data. A separ
 - The hand-built features (leg-swing speed and regularity, knee angle) match the raw Random Forest but vary less between people. Dropping single features moves the score by up to 0.04, which is more than any real effect we can measure with 4 test people, so the features cannot be tuned yet.
 - The app's Video page uses a Random Forest trained on all 5 people. It has no held-out score of its own. The 0.63 above is the leave-one-person-out estimate for the same recipe.
 
+**Stairs direction.** A second Random Forest splits stairs into up and down (notebook `09_stairs_direction.py`). On a held-out person it picks the right direction 85% of the time (80% on side views, where facing the camera cannot give it away), against 50% with shuffled labels.
+
+**Better use of the body points (notebook `10_body_points.py`).** Undistorted points, a 3D body frame from MediaPipe's depth estimate, and whole-body movement raise the honest (nested) score to accuracy 0.64 ± 0.10 and macro F1 0.65, from 0.62 / 0.63. The app uses this model. Labels were set by eye from the video frames. Details and caveats: `reports/results.md`.
+
 **What would help most:** more people, and the same camera angle for everyone.
 
 ## 6. Limitation: fine-tuning on our own data was not possible

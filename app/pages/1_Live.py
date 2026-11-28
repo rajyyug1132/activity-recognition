@@ -1,4 +1,4 @@
-"""Live activity from the Phyphox app over Wi-Fi, or a replay of the sample CSV.
+"""Live activity from the Phyphox app over Wi-Fi, or a replay of the demo recording (app/demo).
 Phone setup: docs/live_demo.md. Run from the repo root: streamlit run app/streamlit_app.py
 
 UI redesign: Essor-inspired dark theme (see docs/ui_redesign_design.md).
@@ -22,13 +22,15 @@ from components.ui import (
     activity_hero,
     footer,
     load_css,
+    page_header,
     section_label,
     setup_steps,
     status_chip,
 )
 
 MODEL = "models/cnn_uci.keras"
-SAMPLE = Path(__file__).resolve().parents[2] / "data" / "sample_synthetic.csv"
+# Real UCI HAR recording of test person 12 (never trained on): walking, down, up, sit, stand, lie
+SAMPLE = Path(__file__).resolve().parents[1] / "demo" / "uci_test_person_12.csv"
 
 # New colorblind-safe activity palette (bar_color, bar_text, display_name)
 STYLE = {
@@ -67,16 +69,18 @@ ss.setdefault("error", None)
 # Header row: title + status chip
 # ---------------------------------------------------------------------------
 title_col, chip_col = st.columns([3, 1])
-title_col.title("Live")
+with title_col:
+    page_header("Live", "Wear your phone at the waist and see what you are doing, updated every second. "
+                "No phone? Play the demo recording.")
 
 with chip_col:
     st.markdown("<div style='padding-top:14px;'>", unsafe_allow_html=True)
     if ss.live is not None:
         mode_val = st.session_state.get("_live_mode", "Replay mode")
-        if "phone" in mode_val.lower():
+        if mode_val.startswith("Phone"):
             status_chip("Phone connected", "connected")
         else:
-            status_chip("Replay mode", "replay")
+            status_chip("Demo recording", "replay")
     else:
         if ss.history:
             status_chip("Stopped", "idle")
@@ -89,7 +93,7 @@ with chip_col:
 # ---------------------------------------------------------------------------
 mode = st.radio(
     "Source",
-    ["Phone (Phyphox)", "Replay sample"],
+    ["Phone (Phyphox)", "Demo recording (no phone)"],
     horizontal=True,
     disabled=ss.live is not None,
 )
@@ -103,10 +107,10 @@ ip = st.text_input(
 )
 
 sample_available = SAMPLE.is_file()
-if mode == "Replay sample" and not sample_available:
+if mode == "Demo recording (no phone)" and not sample_available:
     st.warning(
-        "Replay is unavailable because data/sample_synthetic.csv is missing. "
-        "Add the replay CSV to the data folder, or choose Phone (Phyphox)."
+        "Replay is unavailable because app/demo/uci_test_person_12.csv is missing. "
+        "Restore it from git, or choose Phone (Phyphox)."
     )
 
 c1, c2 = st.columns(2)
@@ -115,7 +119,7 @@ if c1.button(
     "Start",
     type="primary",
     use_container_width=True,
-    disabled=ss.live is not None or (mode == "Replay sample" and not sample_available),
+    disabled=ss.live is not None or (mode == "Demo recording (no phone)" and not sample_available),
 ):
     try:
         src = PhyphoxSource(ip) if mode.startswith("Phone") else ReplaySource(SAMPLE)
@@ -124,10 +128,10 @@ if c1.button(
         ss.history = []
         ss.error = None
     except FileNotFoundError:
-        if mode == "Replay sample":
+        if mode == "Demo recording (no phone)":
             ss.error = (
-                "The replay sample became unavailable. Add "
-                "data/sample_synthetic.csv to the data folder, or choose Phone (Phyphox)."
+                "The replay sample became unavailable. Restore "
+                "app/demo/uci_test_person_12.csv from git, or choose Phone (Phyphox)."
             )
         else:
             ss.error = "Could not start: the requested file was not found."

@@ -145,7 +145,7 @@ if __name__ == "__main__":
     import yaml
     from inference import DummyModel
     cfg = yaml.safe_load(open("config/config.yaml"))
-    src = ReplaySource("data/sample_synthetic.csv", speed=50)  # 90 s file in ~1.8 s
+    src = ReplaySource("app/demo/uci_test_person_12.csv", speed=50)  # 124 s file in ~2.5 s
     src.start()
     clf = LiveClassifier(DummyModel(), cfg)
     assert clf.predict() is None

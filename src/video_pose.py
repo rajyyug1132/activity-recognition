@@ -188,29 +188,120 @@ def feature_windows(X, fps=25) -> np.ndarray:
 
 
 MODEL = os.path.join(ROOT, "models", "video_rf.joblib")
+TRAIN_SIZE = (576, 1024)  # every training video is 576x1024 portrait
+
+
+def _fill(a, max_gap):
+    """Interpolate NaN gaps of up to max_gap frames along time; longer gaps stay NaN."""
+    a = np.array(a, float)
+    flat = a.reshape(len(a), -1)
+    bad = np.isnan(flat).any(1)
+    good, t = np.flatnonzero(~bad), np.arange(len(a))
+    if len(good) == 0:
+        return a
+    for c in range(flat.shape[1]):
+        flat[bad, c] = np.interp(t[bad], good, flat[good, c], left=np.nan, right=np.nan)
+    i = 0
+    while i < len(bad):
+        j = i
+        while j < len(bad) and bad[j]:
+            j += 1
+        if j - i > max_gap:
+            flat[i:j] = np.nan
+        i = max(j, i + 1)
+    return flat.reshape(a.shape)
+
+
+def _iso_normalize(kp, size, max_gap):
+    """normalize_pose on undistorted pixels: MediaPipe x is in widths, y in heights."""
+    xy = np.asarray(kp, float)[:, :, :2] * size
+    hip = xy[:, [23, 24]].mean(1)
+    torso = np.linalg.norm(xy[:, [11, 12]].mean(1) - hip, axis=1)
+    torso[torso == 0] = np.nan
+    return _fill((xy - hip[:, None]) / torso[:, None, None], max_gap)
+
+
+def body_point_features(iso_window, raw_window, size, fps=25) -> np.ndarray:
+    """42 features of one window: the 23 of pose_features on undistorted points, 15 from a 3D body
+    frame (MediaPipe x, y and depth z, turned so the torso is the vertical axis: independent of the
+    camera angle), 4 on whole-body movement through the frame (travel and approach speed)."""
+    P = np.asarray(raw_window, float)[:, :, :3] * [size[0], size[1], size[0]]
+    hip, sh = P[:, [23, 24]].mean(1), P[:, [11, 12]].mean(1)
+    u = (sh - hip).mean(0); u /= np.linalg.norm(u)
+    l = (P[:, 24] - P[:, 23]).mean(0); l -= (l @ u) * u; l /= np.linalg.norm(l)
+    torso = np.linalg.norm(sh - hip, axis=1)
+    B = np.stack([(P - hip[:, None]) @ a for a in (l, u, np.cross(u, l))], -1) / torso.mean()
+    knee = (_angle(B[:, 23], B[:, 25], B[:, 27]) + _angle(B[:, 24], B[:, 26], B[:, 28])) / 2
+    hipflex = (_angle(B[:, 11], B[:, 23], B[:, 25]) + _angle(B[:, 12], B[:, 24], B[:, 26])) / 2
+    au, ku, af = B[:, [27, 28], 1], B[:, [25, 26], 1], B[:, [27, 28], 2]
+    vel = np.diff(B, axis=0) * fps
+    sp = lambda ids, ax: np.abs(vel[:, ids, ax]).mean()
+    step = _periodic(af[:, 0] - af[:, 1], fps)
+    body = [knee.mean(), knee.std(), knee.min(), np.ptp(knee), hipflex.mean(), np.ptp(hipflex),
+            np.ptp(au, axis=0).mean(), np.abs(au[:, 0] - au[:, 1]).mean(), np.abs(au[:, 0] - au[:, 1]).max(),
+            np.ptp(ku, axis=0).mean(), sp([27, 28], 1), sp([27, 28], 2), sp([25, 26], 1), step[0], step[2]]
+    t2 = np.linalg.norm(sh[:, :2] - hip[:, :2], axis=1)  # torso length in the image plane
+    d = np.diff(hip[:, :2], axis=0) * fps / t2[1:, None]
+    ls = np.diff(np.log(t2)) * fps
+    move = [np.linalg.norm(d, axis=1).mean(), np.abs(d[:, 1]).mean(), np.abs(ls).mean(), np.abs(ls.mean())]
+    return np.concatenate([pose_features(iso_window, fps), body, move])
+
+
+def window_features(kp, bundle, cfg, size=TRAIN_SIZE):
+    """Raw keypoints [frames, 33, 4] -> (window start frames, features) for this bundle's model.
+    Bundles with "cols" use the first cols of body_point_features; older ones the notebook 08 set."""
+    v = cfg["video"]
+    fps, win = v["fps"], v["window_frames"]
+    step = max(1, int(win * (1 - v["overlap"])))
+    n0 = normalize_pose(kp, v["max_gap"]).reshape(len(kp), -1)
+    cols = bundle.get("cols")
+    if cols is None:
+        starts = [s for s in range(0, len(kp) - win + 1, step) if not np.isnan(n0[s:s + win]).any()]
+        return starts, (feature_windows(np.stack([n0[s:s + win] for s in starts]), fps) if starts else None)
+    n1 = _iso_normalize(kp, size, v["max_gap"]).reshape(len(kp), -1)
+    r = _fill(kp, v["max_gap"])
+    ok = lambda s: not (np.isnan(n0[s:s + win]).any() or np.isnan(n1[s:s + win]).any() or np.isnan(r[s:s + win]).any())
+    starts = [s for s in range(0, len(kp) - win + 1, step) if ok(s)]
+    F = np.array([body_point_features(n1[s:s + win], r[s:s + win], size, fps)[:cols] for s in starts]) if starts else None
+    return starts, F
+
+
+def _classify(F, bundle):
+    """Features [N, 23] -> (activity names, confidence). If the bundle has a "direction" model
+    (notebooks/09_stairs_direction.py), windows called stairs become upstairs / downstairs and their
+    confidence becomes P(stairs) * P(direction)."""
+    p = bundle["model"].predict_proba(F)
+    act = np.array([bundle["classes"][i] for i in p.argmax(1)], dtype=object)
+    conf = p.max(1)
+    d, m = bundle.get("direction"), act == "stairs"
+    if d and m.any():
+        q = d["model"].predict_proba(F[m])
+        act[m] = [d["classes"][i] for i in q.argmax(1)]
+        conf[m] = conf[m] * q.max(1)
+    return act, conf
 
 
 def predict_video(video_path, bundle, cfg) -> "pd.DataFrame":
     """One row per 2 s window: start_time (s), activity, confidence. `bundle` = joblib dict from notebook 08."""
-    import pandas as pd
+    import cv2, pandas as pd
     v = cfg["video"]
-    kp = normalize_pose(extract_keypoints(video_path, v["fps"]), v["max_gap"])
-    flat = kp.reshape(len(kp), -1)
-    win, step = v["window_frames"], max(1, int(v["window_frames"] * (1 - v["overlap"])))
-    starts = [s for s in range(0, len(flat) - win + 1, step) if not np.isnan(flat[s:s + win]).any()]
+    cap = cv2.VideoCapture(video_path)
+    size = (cap.get(cv2.CAP_PROP_FRAME_WIDTH) or TRAIN_SIZE[0], cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or TRAIN_SIZE[1])
+    cap.release()
+    starts, F = window_features(extract_keypoints(video_path, v["fps"]), bundle, cfg, size)
     if not starts:
         return pd.DataFrame(columns=["start_time", "activity", "confidence"])
-    p = bundle["model"].predict_proba(feature_windows(np.stack([flat[s:s + win] for s in starts]), v["fps"]))
-    return pd.DataFrame({"start_time": np.array(starts) / v["fps"],
-                         "activity": [bundle["classes"][i] for i in p.argmax(1)],
-                         "confidence": p.max(1).round(3)})
+    act, conf = _classify(F, bundle)
+    return pd.DataFrame({"start_time": np.array(starts) / v["fps"], "activity": list(act),
+                         "confidence": conf.round(3)})
 
 
-def predict_live(times, kp, bundle, cfg):
+def predict_live(times, kp, bundle, cfg, size=TRAIN_SIZE):
     """Latest window of a live feed -> (activity, confidence), or None if too short or no body in frame.
 
-    times: seconds per frame (increasing); kp: [frames, 33, 4] raw keypoints. A webcam's frame
-    rate varies, so the last window is resampled to cfg fps before the speed features are built.
+    times: seconds per frame (increasing); kp: [frames, 33, 4] raw keypoints; size: frame (width,
+    height) in pixels. A webcam's frame rate varies, so the last window is resampled to cfg fps
+    before the speed features are built.
     """
     v = cfg["video"]
     fps, win = v["fps"], v["window_frames"]
@@ -220,8 +311,8 @@ def predict_live(times, kp, bundle, cfg):
     grid = t[-1] - np.arange(win)[::-1] / fps
     flat = np.asarray(kp, float).reshape(len(t), -1)
     rs = np.stack([np.interp(grid, t, flat[:, c]) for c in range(flat.shape[1])], 1)
-    w = normalize_pose(rs.reshape(win, 33, -1), v["max_gap"]).reshape(win, -1)
-    if np.isnan(w).any():
+    starts, F = window_features(rs.reshape(win, 33, -1), bundle, cfg, size)
+    if not starts:
         return None
-    p = bundle["model"].predict_proba(feature_windows(w[None], fps))[0]
-    return bundle["classes"][p.argmax()], float(p.max())
+    act, conf = _classify(F, bundle)
+    return act[0], float(conf[0])
