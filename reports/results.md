@@ -43,6 +43,21 @@ Leave-one-person-out over p1-p4 (493 windows of 2 s in total). p5 has one walkin
 
 ± is the standard deviation over the 4 held-out people. Ablation on the hand-built features (Random Forest, macro F1): all 23 = 0.627, without `torso_tilt` = 0.585, without `torso_tilt` and `knee_y_mean` = 0.660. These differences are within noise at 4 test people. The 120 fps clips (A (4), B (8), C (7)) were checked: walking cadence 0.63-0.74 Hz, same as 30 fps clips (0.66-0.85 Hz), so they are not slow motion and are kept. The first run (before p5's clip was added) gave the same picture: CNN 0.36, raw RF 0.63, features RF 0.63.
 
+## Camera pipeline: better use of the body points (`notebooks/10_body_points.py`)
+
+Same 493 windows, same leave-one-person-out test. The candidates were fixed before any test result. F1: the 23 features on undistorted points (MediaPipe x is in widths and y in heights, and the videos are portrait). F2: F1 + 15 features in a 3D body frame, built from MediaPipe's depth estimate and turned so the torso is the vertical axis: knee and hip angles, foot and step height. F3: F2 + 4 whole-body movement features (travel and approach speed). Each with a Random Forest (notebook 08 settings) or gradient boosting (HGB).
+
+| Date | Features | Model | Accuracy | Macro F1 | Ran by |
+|---|---|---|---|---|---|
+| 2026-11-28 | F0: 23 (notebook 08, before) | RF | 0.62 ± 0.13 | 0.63 | Yyug |
+| 2026-11-28 | F1: 23 undistorted | RF | 0.63 ± 0.13 | 0.64 | Yyug |
+| 2026-11-28 | F2: + 3D body frame (38) | RF | 0.64 ± 0.12 | 0.65 | Yyug |
+| 2026-11-28 | F3: + movement (42) | RF | 0.65 ± 0.10 | 0.66 | Yyug |
+| 2026-11-28 | F3: + movement (42) | HGB | 0.62 ± 0.13 | 0.64 | Yyug |
+| 2026-11-28 | **nested: candidate chosen without the test person** | | **0.64 ± 0.10** | **0.65** | Yyug |
+
+The nested row is the honest score. Choosing the best row above after the fact would be optimistic. The gain over F0 (+2 points) is real but smaller than the spread between people. The app uses F3 + RF, trained on all 5 people. Stairs direction with the F3 features, leave one person out: 0.85 of 82 windows (side views 0.80 of 35, front/back 0.89 of 47), up from 0.82 / 0.77 / 0.85.
+
 ## Camera pipeline: stairs direction (`notebooks/09_stairs_direction.py`)
 
 A second stage on top of the 3-class model: for windows called stairs, a Random Forest with the same settings says up or down. The 3-class model is unchanged. Direction labels were set by eye from video frames, never from a model's output, and were not checked by a second person. Five clips were filmed from the top of the flight, so walking toward the camera is up. Three side-view clips were judged by which step the front foot lands on. A (5) and D (6) are side views whose direction could not be told, and A (3) is too short: all three are left out. 82 windows remain (46 up, 36 down), and each of p1-p4 has both directions.

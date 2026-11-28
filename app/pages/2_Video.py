@@ -44,8 +44,8 @@ st.set_page_config(
 )
 load_css()
 
-VIDEO_NOTE = ("Camera model: on a person it never saw, macro F1 0.63 for walking / standing / stairs; "
-              "stairs direction right about 8 times in 10.")
+VIDEO_NOTE = ("Camera model: on a person it never saw, 64% of windows right for walking / standing / stairs "
+              "(macro F1 0.65); stairs direction right 85% of the time.")
 page_header(
     "Activity from video",
     "Upload a video of one person, or use your webcam, to see when they walk, stand, "
@@ -54,8 +54,11 @@ page_header(
 with st.expander("How accurate is it? (experimental)"):
     st.markdown(
         "- Trained on videos of **5 people**. Tested on each person after training on the other four.\n"
-        "- Walking / standing / stairs: **macro F1 0.63** (random guessing: 0.33).\n"
-        "- Stairs direction, up or down: right **82%** of the time (77% on side views, "
+        "- Reads the 33 MediaPipe body points: undistorted positions, a 3D body frame from the depth "
+        "estimate (so the camera angle matters less), and how the whole body moves.\n"
+        "- Walking / standing / stairs: **64%** of 2-second windows right, **macro F1 0.65** "
+        "(random guessing: 0.33).\n"
+        "- Stairs direction, up or down: right **85%** of the time (80% on side views, "
         "where facing the camera can't give it away). Shuffled labels score 50%.\n"
         "- No sitting or lying. The video is processed on this computer and not kept."
     )
@@ -143,7 +146,7 @@ def run_live(bundle, cfg):
                     kps.pop(0)
                 if t - last >= 0.5:
                     last = t
-                    r = predict_live(times, np.array(kps), bundle, cfg)
+                    r = predict_live(times, np.array(kps), bundle, cfg, size=rgb.shape[1::-1])
                     with label.container():
                         if r:
                             activity_hero(STYLE.get(r[0], OLD_STAIRS)[2], r[1], model="Random Forest · live camera")

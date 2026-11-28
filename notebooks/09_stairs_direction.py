@@ -14,7 +14,7 @@ import joblib, numpy as np, yaml
 from sklearn.ensemble import RandomForestClassifier
 
 sys.path.insert(0, "src")
-from video_pose import MODEL, feature_windows, normalize_pose, to_windows
+from video_pose import MODEL, window_features
 
 # keypoint file -> [(direction, start s, end s, view)]; video file in the comment
 SEG = {"p1_stairs_05": [("upstairs", 0, 9.0, "front/back"), ("downstairs", 10.5, 20.0, "front/back")],  # A (8)
@@ -29,14 +29,17 @@ DIRS = ["upstairs", "downstairs"]
 RF = lambda: RandomForestClassifier(300, min_samples_leaf=3, class_weight="balanced", random_state=42, n_jobs=-1)
 
 cfg = yaml.safe_load(open("config/config.yaml"))
-v, fps = cfg["video"], cfg["video"]["fps"]
+fps = cfg["video"]["fps"]
+bundle = joblib.load(MODEL)   # use the same features as the saved stage-1 model (notebook 10 or 08)
 X, y, sub, view = [], [], [], []
 for name, segs in SEG.items():
     kp = np.load(f"data/video/keypoints/{name}.npz")["kp"]
     for d, s, e, vw in segs:
-        w = to_windows(normalize_pose(kp[int(s * fps):int(e * fps)], v["max_gap"]), v["window_frames"], v["overlap"])
+        w = window_features(kp[int(s * fps):int(e * fps)], bundle, cfg)[1]
+        if w is None:
+            continue
         X.append(w); y += [DIRS.index(d)] * len(w); sub += [name[:2]] * len(w); view += [vw] * len(w)
-F, y, sub, view = feature_windows(np.concatenate(X), fps), np.array(y), np.array(sub), np.array(view)
+F, y, sub, view = np.concatenate(X), np.array(y), np.array(sub), np.array(view)
 print(f"{len(y)} stairs windows: {(y == 0).sum()} up, {(y == 1).sum()} down")
 
 # leave one person out: direction accuracy on the held-out person's true stairs windows
@@ -56,7 +59,6 @@ for _ in range(10):  # same test with training labels shuffled: what chance look
     null.append(r.mean())
 print(f"all: {right.mean():.2f} (training labels shuffled: {np.mean(null):.2f} ± {np.std(null):.2f})")
 
-bundle = joblib.load(MODEL)
 bundle["direction"] = {"model": RF().fit(F, y), "classes": DIRS}
 joblib.dump(bundle, MODEL)
 print(f"added the direction model to {MODEL}")

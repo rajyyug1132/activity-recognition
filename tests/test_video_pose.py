@@ -104,3 +104,17 @@ def test_stairs_become_up_or_down():
     base["model"] = Fixed([0.7, 0.2, 0.1])               # not stairs: direction model not used
     act, conf = _classify(F, base)
     assert list(act) == ["walking", "walking"] and np.allclose(conf, 0.7)
+
+
+def test_body_point_features_shape_and_windows():
+    from video_pose import window_features
+    rng = np.random.default_rng(3)
+    kp = pose(120)
+    kp[:, :, :3] = kp[:, :, :3] * 0.02 + kp[:, :, :3].mean(0) * 0 + rng.uniform(0.3, 0.7, (33, 3))  # plausible, varied points
+    kp[:, 23, :2] = [0.45, 0.6]; kp[:, 24, :2] = [0.55, 0.6]; kp[:, 11, :2] = [0.45, 0.3]; kp[:, 12, :2] = [0.55, 0.3]
+    s_old, F_old = window_features(kp, {}, CFG)
+    s_new, F_new = window_features(kp, {"cols": 42}, CFG)
+    assert s_old == s_new == [0, 25, 50]
+    assert F_old.shape == (3, 23) and F_new.shape == (3, 42) and np.isfinite(F_new).all()
+    kp[60:70] = np.nan                                     # 10-frame gap (> max_gap): windows touching it drop
+    assert window_features(kp, {"cols": 42}, CFG)[0] == [0]
