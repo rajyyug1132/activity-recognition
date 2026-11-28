@@ -297,7 +297,7 @@ def footer() -> None:
     """Render the standard app footer with model limitations note."""
     st.markdown(
         '<div class="app-footer">'
-        "Model accuracy: ~93% on the UCI HAR benchmark dataset. "
+        "Model accuracy: 91% on the UCI HAR benchmark dataset. "
         "Real-world results vary with phone placement and sensor calibration."
         "</div>",
         unsafe_allow_html=True,

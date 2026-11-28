@@ -109,3 +109,9 @@ Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other f
 | Yash | src/models.py, train.py, evaluate.py |
 | Yashaswini | src/inference.py, app/streamlit_app.py |
 | Yyug | docs/HLD.md |
+
+### Members
+
+| Name | USN |
+|---|---|
+| Yash Chandra | 1BM25CS318 |
