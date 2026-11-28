@@ -149,7 +149,7 @@ if c2.button("Stop", use_container_width=True, disabled=ss.live is None):
 if mode.startswith("Phone") and ss.live is None:
     setup_steps([
         "Install Phyphox on your phone.",
-        'Open the "Acceleration without g" experiment (or the HAR live experiment).',
+        'Open the "HAR live (acc + gyro)" experiment (docs/har_live.phyphox). Built-in experiments lack the buffers the model needs.',
         "Enable Remote Access in the Phyphox menu.",
         "Type the IP address and port Phyphox shows into the field above.",
         "Press Start.",

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import html
 import pathlib
-from textwrap import dedent
 
 import streamlit as st
 
@@ -122,15 +121,12 @@ def activity_hero(
     act_style = f"border-left: 4px solid {color};"
 
     escaped_display = html.escape(display_name)
+    # One line, no blank lines: an empty {model_chip} or {sub_line} used to leave a blank
+    # line, which ends Markdown's HTML block and shows the indented rest as a code block.
     st.markdown(
-        dedent(f"""
-        <div class="activity-hero" style="{act_style}">
-            {model_chip}
-            <p class="eyebrow">CURRENT ACTIVITY</p>
-            <h1 class="activity-name">{escaped_display}</h1>
-            {sub_line}
-        </div>
-        """).strip(),
+        f'<div class="activity-hero" style="{act_style}">{model_chip}'
+        f'<p class="eyebrow">CURRENT ACTIVITY</p>'
+        f'<h1 class="activity-name">{escaped_display}</h1>{sub_line}</div>',
         unsafe_allow_html=True,
     )
 
