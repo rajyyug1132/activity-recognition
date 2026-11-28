@@ -110,7 +110,7 @@ Evaluation is leave-one-person-out over p1-p4 (test on one, train on the other f
 | Yashaswini | src/inference.py, app/streamlit_app.py |
 | Yyug | docs/HLD.md |
 
-## Team
+### Members
 
 | Name | USN |
 |---|---|
